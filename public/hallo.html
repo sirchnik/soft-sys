@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fancy Hallo</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background: linear-gradient(135deg, #ff416c, #ff4b2b);
+        color: white;
+        transition: background 0.5s;
+        flex-direction: column;
+      }
+
+      h1 {
+        font-size: 3em;
+        text-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .fancy-button {
+        background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+        border: none;
+        padding: 15px 30px;
+        font-size: 1.2em;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: transform 0.3s, background 0.3s;
+      }
+
+      .fancy-button:hover {
+        transform: scale(1.1);
+        background: linear-gradient(45deg, #fad0c4, #ff9a9e);
+      }
+
+      #darkmode-toggle {
+        margin-top: 20px;
+        padding: 10px 20px;
+        background: black;
+        color: white;
+        border: none;
+        cursor: pointer;
+        border-radius: 20px;
+        transition: background 0.3s, color 0.3s;
+      }
+
+      #darkmode-toggle:hover {
+        background: white;
+        color: black;
+      }
+
+      .dark-mode {
+        background: linear-gradient(135deg, #232526, #414345);
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="greeting">Hallo, Welt! 👋</h1>
+    <button class="fancy-button" onclick="changeGreeting()">Klick mich!</button>
+    <button id="darkmode-toggle" onclick="toggleDarkMode()">
+      🌙 Dark Mode
+    </button>
+
+    <script>
+      function changeGreeting() {
+        const greetings = [
+          "Hallo, Welt!",
+          "Servus! 🤠",
+          "Moin! ⚓",
+          "Grüzi! 🇨🇭",
+          "Salut! 🥖",
+        ];
+        const randomGreeting =
+          greetings[Math.floor(Math.random() * greetings.length)];
+        document.getElementById("greeting").textContent = randomGreeting;
+      }
+
+      function toggleDarkMode() {
+        document.body.classList.toggle("dark-mode");
+      }
+    </script>
+  </body>
+</html>
