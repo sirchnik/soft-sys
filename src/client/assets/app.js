@@ -1,5 +1,26 @@
+/**
+ * @type {HTMLElement}
+ */
+// @ts-ignore
+const app = document.getElementById("app");
+if (app === null) {
+  throw "App could not be loaded.";
+}
+
 window.addEventListener("popstate", (event) => {
   renderPage(event.state?.path || "");
+});
+
+document.addEventListener("click", (event) => {
+  try {
+    // @ts-ignore
+    const link = event.target.closest("a.nav-link");
+    if (link && link.href.startsWith(window.location.origin)) {
+      event.preventDefault();
+      const path = new URL(link.href).pathname.replace("/", "");
+      navigateTo(path);
+    }
+  } catch {}
 });
 
 const currentRoute = window.location.pathname.replace("/", "");
@@ -21,15 +42,6 @@ function renderPage(route) {
   (routes[route] || index)();
 }
 
-/**
- * @type {HTMLElement}
- */
-// @ts-ignore
-const app = document.getElementById("app");
-if (app === null) {
-  throw "App could not be loaded.";
-}
-
 function hallo() {
   app.innerHTML = `
       <h1 id="greeting">Hallo, Welt! 👋</h1>
@@ -40,7 +52,7 @@ function hallo() {
 function index() {
   app.innerHTML = `
       <h1>Willkommen! 🎉</h1>
-      <button onclick="navigateTo('hallo')" class="start-button">Starte die Magie ✨</button>
+      <a href="hallo" class="nav-link start-button">Starte die Magie ✨</a>
     `;
 }
 
