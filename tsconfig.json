@@ -16,8 +16,10 @@
     "noFallthroughCasesInSwitch": true,
     "strictBindCallApply": true,
     "esModuleInterop": true,
+    "checkJs": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
+  "include": ["src"],
   "exclude": ["node_modules", "**/node_modules/*"]
 }

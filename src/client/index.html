@@ -40,10 +40,25 @@
         transform: scale(1.1);
         background: linear-gradient(45deg, #fad0c4, #ff9a9e);
       }
+
+      .fancy-button {
+        background: linear-gradient(45deg, #ff9a9e, #fad0c4);
+        border: none;
+        padding: 15px 30px;
+        font-size: 1.2em;
+        border-radius: 50px;
+        cursor: pointer;
+        transition: transform 0.3s, background 0.3s;
+      }
+
+      .fancy-button:hover {
+        transform: scale(1.1);
+        background: linear-gradient(45deg, #fad0c4, #ff9a9e);
+      }
     </style>
+    <script async defer src="assets/app.js"></script>
   </head>
   <body>
-    <h1>Willkommen! 🎉</h1>
-    <a href="hallo.html" class="start-button">Starte die Magie ✨</a>
+    <div id="app"></div>
   </body>
 </html>
