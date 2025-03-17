@@ -8,7 +8,14 @@ const PORT = process.env.PORT || 3000;
 app.use(
   "/assets",
   express.static(
-    path.resolve(fileURLToPath(import.meta.resolve("../dist/assets")))
+    path.resolve(fileURLToPath(import.meta.resolve("../dist/assets"))),
+    {
+      maxAge: "1y", // Cache for 1 year
+      setHeaders: (res, _filePath) => {
+        // You can add more headers here if needed
+        res.setHeader("Cache-Control", "public, max-age=31536000");
+      },
+    }
   )
 );
 

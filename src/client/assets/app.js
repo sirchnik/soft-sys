@@ -2,14 +2,27 @@
  * @type {HTMLElement}
  */
 // @ts-ignore
-const app = document.getElementById("app");
+let app = document.getElementById("app");
 if (app === null) {
-  throw "App could not be loaded.";
+  document.addEventListener("DOMContentLoaded", () => {
+    // @ts-ignore
+    app = document.getElementById("app");
+    if (app === null) {
+      throw "App could not be loaded!";
+    }
+    init();
+  });
+} else {
+  init();
 }
 
-window.addEventListener("popstate", (event) => {
-  renderPage(event.state?.path || "");
-});
+function init() {
+  const currentRoute = window.location.pathname.replace("/", "");
+  renderPage(currentRoute);
+  window.addEventListener("popstate", (event) => {
+    renderPage(event.state?.path || "");
+  });
+}
 
 document.addEventListener("click", (event) => {
   try {
@@ -22,9 +35,6 @@ document.addEventListener("click", (event) => {
     }
   } catch {}
 });
-
-const currentRoute = window.location.pathname.replace("/", "");
-renderPage(currentRoute);
 
 /**
  * @param {string} route
@@ -46,6 +56,7 @@ function hallo() {
   app.innerHTML = `
       <h1 id="greeting">Hallo, Welt! 👋</h1>
       <button class="fancy-button" onclick="changeGreeting()">Klick mich!</button>
+      <a href="/" class="nav-link start-button">Zurück</a>
     `;
 }
 
