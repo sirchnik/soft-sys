@@ -44,6 +44,7 @@ async function main() {
   const distDir = fileURLToPath(import.meta.resolve("./dist/"));
   const folderHash = await getFolderHash(clientDir);
 
+  await fs.rm(distDir, { recursive: true, force: true });
   await fs.mkdir(distDir, { recursive: true });
 
   const indexPath = path.join(clientDir, "index.html");

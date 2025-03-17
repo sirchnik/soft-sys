@@ -5,7 +5,7 @@
   "author": "Niklas Sirch",
   "main": "src/index.ts",
   "scripts": {
-    "build": "node script.ts",
+    "build": "node build.ts",
     "start": "node src/index.ts",
     "dev": "pnpm build && node --watch src/index.ts",
     "typecheck": "tsc --noEmit"

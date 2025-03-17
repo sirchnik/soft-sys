@@ -24,6 +24,7 @@ function init() {
   });
 }
 
+// ChatGPT
 document.addEventListener("click", (event) => {
   try {
     // @ts-ignore
@@ -39,17 +40,16 @@ document.addEventListener("click", (event) => {
 /**
  * @param {string} route
  */
-function renderPage(route) {
-  /**
-   * @type {Record<string, (()=>void)|undefined>}
-   */
-  const routes = {
-    index,
-    hallo,
-    "": index,
-  };
-
-  (routes[route] || index)();
+async function renderPage(route) {
+  try {
+    const response = await fetch(`/api/${route || "index"}`);
+    if (!response.ok) throw new Error("Seite konnte nicht geladen werden.");
+    const data = await response.json();
+    app.innerHTML = data.html;
+  } catch (error) {
+    console.error(error);
+    app.innerHTML = "<h1>Fehler beim Laden der Seite</h1>";
+  }
 }
 
 function hallo() {
