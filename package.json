@@ -2,17 +2,12 @@
   "name": "soft-sys",
   "version": "0.0.0",
   "type": "module",
-  "description": "",
+  "author": "Niklas Sirch",
   "main": "src/index.ts",
   "scripts": {
     "start": "node src/index.ts",
     "dev": "node --watch src/index.ts",
     "typecheck": "tsc --noEmit"
-  },
-  "author": "Niklas Sirch",
-  "packageManager": "pnpm@10.6.1",
-  "engines": {
-    "node": ">=23"
   },
   "dependencies": {
     "express": "^4.21.2"
@@ -22,5 +17,9 @@
     "@types/node": "^22.13.10",
     "eslint": "^9.22.0",
     "typescript": "^5.8.2"
+  },
+  "packageManager": "pnpm@10.6.1",
+  "engines": {
+    "node": ">=23"
   }
 }
