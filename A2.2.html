@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Zeichenfläche</title>
+    <style>
+      #canvas {
+        width: 500px;
+        height: 500px;
+        background-color: #ccc;
+        border: 1px solid #000;
+      }
+
+      #info,
+      #list {
+        margin-top: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Zeichenfläche</h2>
+
+    <div id="canvas"></div>
+
+    <div id="info">Mausposition: X: -, Y: -</div>
+
+    <div id="list">
+      <strong>Gespeicherte Punkte:</strong>
+      <ol id="points"></ol>
+    </div>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const info = document.getElementById("info");
+      const points = document.getElementById("points");
+
+      canvas.addEventListener("mousemove", function (event) {
+        const bounds = canvas.getBoundingClientRect();
+        const x = event.clientX - bounds.left;
+        const y = event.clientY - bounds.top;
+        info.textContent = `Mausposition: X: ${x.toFixed(0)}, Y: ${y.toFixed(
+          0
+        )}`;
+      });
+
+      canvas.addEventListener("click", function (event) {
+        const bounds = canvas.getBoundingClientRect();
+        const x = event.clientX - bounds.left;
+        const y = event.clientY - bounds.top;
+
+        const entry = document.createElement("li");
+        entry.textContent = `X: ${x.toFixed(0)}, Y: ${y.toFixed(0)}`;
+        points.appendChild(entry);
+      });
+    </script>
+  </body>
+</html>
