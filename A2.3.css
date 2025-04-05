@@ -1,0 +1,45 @@
+.separator-entry {
+  width: 100%;
+  height: 1px;
+  background-color: #ddd;
+  margin: 4px 0;
+}
+.menu-container {
+  display: block;
+  position: absolute;
+  z-index: 1000;
+  background-color: #f9f9f9;
+  border: 1px solid #ccc;
+  padding: 5px 0;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  width: 150px;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  color: #333;
+}
+
+.menu-entry {
+  padding: 8px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.menu-entry:hover {
+  background-color: #f1f1f1;
+}
+
+#shadow-box.enabled {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999; /* Below the menu */
+  pointer-events: all; /* Blocks all clicks */
+}
+
+#shadow-box {
+  pointer-events: none; /* Default state does not block clicks */
+}
