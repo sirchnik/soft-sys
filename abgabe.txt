@@ -1,0 +1,24 @@
+#!/bin/bash
+
+git clone ssh://git@gitlab.informatik.hs-augsburg.de:2222/niks/soft-sys.git
+
+cd soft-sys
+
+# Aufgabe 2.1
+
+git checkout 035c6ea5f9e3d8650e4dfda68f0502a6410cf021
+
+xdg-open file://$(realpath A2_1-Sticky-Sessions.drawio.svg)
+
+# Aufgabe 2.2
+
+git checkout 1a11219cdae58362234c68bc835175ed00507ef4
+
+xdg-open file://$(realpath A2.2.html)
+
+# Aufgabe 2.3
+
+git checkout 1bd9c034a9c13b981c9db16952d2a1cfeb49c839
+
+python -m http.server&
+xdg-open http://localhost:8000/A2.3.html
