@@ -459,6 +459,21 @@ class SelectionManager {
             );
             menu.hide();
           }),
+          new SeparatorEntry(),
+          new MenuEntry("In den Vordergrund", () => {
+            this.selectedShapes.forEach((e) =>
+              this.shapeManager.moveToFront(e[1])
+            );
+            this.shapeManager.redraw();
+            menu.hide();
+          }),
+          new MenuEntry("In den Hintergrund", () => {
+            this.selectedShapes.forEach((e) =>
+              this.shapeManager.moveToBack(e[1])
+            );
+            this.shapeManager.redraw();
+            menu.hide();
+          }),
         ]);
         menu.show(e.pageX, e.pageY);
       }
@@ -547,10 +562,12 @@ interface ShapeManager {
   removeShape(shape: Shape, redraw?: boolean): this;
   removeShapeWithId(id: number, redraw?: boolean): this;
   redraw(): this;
+  moveToFront(shape: Shape): void;
+  moveToBack(shape: Shape): void;
 }
 class Canvas implements ShapeManager {
   private ctx: CanvasRenderingContext2D;
-  private shapes: { [id: number]: Shape } = {};
+  private shapes: Shape[] = [];
 
   constructor(canvasDomElement: HTMLCanvasElement, private toolarea: ToolArea) {
     this.ctx = canvasDomElement.getContext("2d")!;
@@ -561,6 +578,7 @@ class Canvas implements ShapeManager {
     canvasDomElement.addEventListener("mousedown", this.handleMouseDown);
     canvasDomElement.addEventListener("mouseup", this.handleMouseUp);
   }
+
   redraw(): this {
     return this.draw();
   }
@@ -585,7 +603,7 @@ class Canvas implements ShapeManager {
     if (this.toolarea.selectionModeActive()) {
       this.toolarea
         .getSelectionManager()
-        .handleSelection(methodName, e, this.shapes);
+        .handleSelection(methodName, e, this.getShapesMap());
     }
 
     const ss = this.toolarea.getSelectedShape();
@@ -595,39 +613,51 @@ class Canvas implements ShapeManager {
   }
 
   draw(): this {
-    // TODO: is there a better way to reset the canvas?
     this.ctx.beginPath();
     this.ctx.fillStyle = "lightgrey";
     this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     this.ctx.stroke();
 
-    // draw shapes
-    this.ctx.fillStyle = "black";
     const selectedShapes = this.toolarea
       .getSelectionManager()
       .getSelectedShapes();
-    for (let id in this.shapes) {
-      this.shapes[id].draw(this.ctx, {
-        marked: this.toolarea.selectionModeActive() && !!selectedShapes[id],
+
+    for (const shape of this.shapes) {
+      shape.draw(this.ctx, {
+        marked:
+          this.toolarea.selectionModeActive() && !!selectedShapes[shape.id],
       });
     }
     return this;
   }
 
   addShape(shape: Shape, redraw: boolean = true): this {
-    this.shapes[shape.id] = shape;
+    this.shapes.push(shape);
     return redraw ? this.draw() : this;
   }
 
   removeShape(shape: Shape, redraw: boolean = true): this {
-    const id = shape.id;
-    delete this.shapes[id];
+    this.shapes = this.shapes.filter((s) => s.id !== shape.id);
     return redraw ? this.draw() : this;
   }
 
   removeShapeWithId(id: number, redraw: boolean = true): this {
-    delete this.shapes[id];
+    this.shapes = this.shapes.filter((s) => s.id !== id);
     return redraw ? this.draw() : this;
+  }
+
+  moveToFront(shape: Shape): void {
+    this.shapes = this.shapes.filter((s) => s.id !== shape.id);
+    this.shapes.push(shape);
+  }
+
+  moveToBack(shape: Shape): void {
+    this.shapes = this.shapes.filter((s) => s.id !== shape.id);
+    this.shapes.unshift(shape);
+  }
+
+  private getShapesMap(): { [id: number]: Shape } {
+    return Object.fromEntries(this.shapes.map((shape) => [shape.id, shape]));
   }
 }
 
@@ -653,6 +683,12 @@ function init() {
     },
     redraw() {
       return canvas.redraw();
+    },
+    moveToFront(shape) {
+      return canvas.moveToFront(shape);
+    },
+    moveToBack(shape) {
+      return canvas.moveToBack(shape);
     },
   };
   const shapesSelector: ShapeFactory[] = [
