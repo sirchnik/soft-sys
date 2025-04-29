@@ -1,3 +1,4 @@
+const MARKED = { width: 4, style: "green" };
 const canvasWidth = 1024,
   canvasHeight = 768;
 interface ShapeFactory {
@@ -6,9 +7,10 @@ interface ShapeFactory {
   handleMouseUp(x: number, y: number): void;
   handleMouseMove(x: number, y: number): void;
 }
+type DrawOptions = { marked?: boolean };
 interface Shape {
   readonly id: number;
-  draw(ctx: CanvasRenderingContext2D): void;
+  draw(ctx: CanvasRenderingContext2D, drawOptions?: DrawOptions): void;
 }
 class Point2D {
   constructor(readonly x: number, readonly y: number) {}
@@ -64,7 +66,26 @@ class Line extends AbstractShape implements Shape {
     super();
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
+    if (drawOptions.marked) {
+      ctx.beginPath();
+      const oldStyle = ctx.strokeStyle;
+      ctx.strokeStyle = MARKED.style;
+      ctx.strokeRect(
+        this.from.x - MARKED.width,
+        this.from.y - MARKED.width,
+        MARKED.width * 2,
+        MARKED.width * 2
+      );
+      ctx.strokeRect(
+        this.to.x - MARKED.width,
+        this.to.y - MARKED.width,
+        MARKED.width * 2,
+        MARKED.width * 2
+      );
+      ctx.stroke();
+      ctx.strokeStyle = oldStyle;
+    }
     ctx.beginPath();
     ctx.moveTo(this.from.x, this.from.y);
     ctx.lineTo(this.to.x, this.to.y);
@@ -86,7 +107,20 @@ class Circle extends AbstractShape implements Shape {
   constructor(readonly center: Point2D, readonly radius: number) {
     super();
   }
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
+    if (drawOptions.marked) {
+      ctx.beginPath();
+      const oldStyle = ctx.strokeStyle;
+      ctx.strokeStyle = MARKED.style;
+      ctx.rect(
+        this.center.x - this.radius - MARKED.width,
+        this.center.y - this.radius - MARKED.width,
+        this.radius * 2 + MARKED.width * 2,
+        this.radius * 2 + MARKED.width * 2
+      );
+      ctx.stroke();
+      ctx.strokeStyle = oldStyle;
+    }
     ctx.beginPath();
     ctx.arc(this.center.x, this.center.y, this.radius, 0, 2 * Math.PI);
     ctx.stroke();
@@ -114,7 +148,21 @@ class Rectangle extends AbstractShape implements Shape {
     super();
   }
 
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
+    const width = this.to.x - this.from.x;
+    const height = this.to.y - this.from.y;
+    if (drawOptions.marked) {
+      const oldStyle = ctx.strokeStyle;
+      ctx.strokeStyle = MARKED.style;
+      ctx.beginPath();
+      ctx.strokeRect(
+        this.from.x - MARKED.width * Math.sign(width),
+        this.from.y - MARKED.width * Math.sign(height),
+        width + MARKED.width * 2 * Math.sign(width),
+        height + MARKED.width * 2 * Math.sign(height)
+      );
+      ctx.strokeStyle = oldStyle;
+    }
     ctx.beginPath();
     ctx.strokeRect(
       this.from.x,
@@ -146,7 +194,23 @@ class Triangle extends AbstractShape implements Shape {
   ) {
     super();
   }
-  draw(ctx: CanvasRenderingContext2D) {
+  draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions) {
+    if (drawOptions.marked) {
+      ctx.beginPath();
+      const oldStyle = ctx.strokeStyle;
+      ctx.strokeStyle = MARKED.style;
+      const minX = Math.min(this.p1.x, this.p2.x, this.p3.x);
+      const minY = Math.min(this.p1.y, this.p2.y, this.p3.y);
+      const maxX = Math.max(this.p1.x, this.p2.x, this.p3.x);
+      const maxY = Math.max(this.p1.y, this.p2.y, this.p3.y);
+      ctx.strokeRect(
+        minX - MARKED.width,
+        minY - MARKED.width,
+        maxX - minX + MARKED.width * 2,
+        maxY - minY + MARKED.width * 2
+      );
+      ctx.strokeStyle = oldStyle;
+    }
     ctx.beginPath();
     ctx.moveTo(this.p1.x, this.p1.y);
     ctx.lineTo(this.p2.x, this.p2.y);
@@ -272,8 +336,8 @@ interface ShapeManager {
 }
 class Canvas implements ShapeManager {
   private ctx: CanvasRenderingContext2D;
-  private shapes: { [p: number]: Shape } = {};
-  private selectedShapes: Shape[] = [];
+  private shapes: { [id: number]: Shape } = {};
+  private selectedShapes: { [id: number]: Shape | undefined } = {};
 
   constructor(canvasDomElement: HTMLCanvasElement, toolarea: ToolArea) {
     this.ctx = canvasDomElement.getContext("2d");
@@ -321,7 +385,7 @@ class Canvas implements ShapeManager {
     // draw shapes
     this.ctx.fillStyle = "black";
     for (let id in this.shapes) {
-      this.shapes[id].draw(this.ctx);
+      this.shapes[id].draw(this.ctx, { marked: !this.selectedShapes[id] });
     }
     return this;
   }
