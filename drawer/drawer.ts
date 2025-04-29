@@ -1,4 +1,4 @@
-import { Menu, MenuEntry, SeparatorEntry } from "./context.js";
+import { Menu, MenuEntry, SeparatorEntry, RadioOption } from "./context.js";
 
 const MARKED = { width: 4, style: "green" };
 const canvasWidth = 1024,
@@ -9,8 +9,14 @@ interface ShapeFactory {
   handleMouseUp(x: number, y: number): void;
   handleMouseMove(x: number, y: number): void;
 }
-type DrawOptions = { marked?: boolean };
+type DrawOptions = {
+  marked?: boolean;
+  backgroundColor?: string;
+  borderColor?: string;
+};
 interface Shape {
+  setBorderColor(value: string): unknown;
+  setBackgroundColor(value: string): unknown;
   readonly id: number;
   draw(ctx: CanvasRenderingContext2D, drawOptions?: DrawOptions): void;
   isSelected(e: MouseEvent): boolean;
@@ -21,8 +27,19 @@ class Point2D {
 class AbstractShape {
   private static counter: number = 0;
   readonly id: number;
+  backgroundColor: string = "transparent";
+  borderColor: string = "black";
+
   constructor() {
     this.id = AbstractShape.counter++;
+  }
+
+  setBorderColor(color: string): void {
+    this.borderColor = color;
+  }
+
+  setBackgroundColor(color: string): void {
+    this.backgroundColor = color;
   }
 }
 abstract class AbstractFactory<T extends Shape> {
@@ -86,6 +103,7 @@ class Line extends AbstractShape implements Shape {
   }
 
   draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
+    ctx.strokeStyle = drawOptions.borderColor || this.borderColor;
     if (drawOptions.marked) {
       ctx.beginPath();
       const oldStyle = ctx.strokeStyle;
@@ -147,7 +165,10 @@ class Circle extends AbstractShape implements Shape {
       ctx.strokeStyle = oldStyle;
     }
     ctx.beginPath();
+    ctx.fillStyle = drawOptions.backgroundColor || this.backgroundColor;
+    ctx.strokeStyle = drawOptions.borderColor || this.borderColor;
     ctx.arc(this.center.x, this.center.y, this.radius, 0, 2 * Math.PI);
+    ctx.fill();
     ctx.stroke();
   }
 }
@@ -178,8 +199,8 @@ class Rectangle extends AbstractShape implements Shape {
     const minY = Math.min(this.from.y, this.to.y);
     const maxY = Math.max(this.from.y, this.to.y);
 
-    const mouseX = this.from.x;
-    const mouseY = this.from.y;
+    const mouseX = e.offsetX;
+    const mouseY = e.offsetY;
 
     return mouseX >= minX && mouseX <= maxX && mouseY >= minY && mouseY <= maxY;
   }
@@ -187,10 +208,10 @@ class Rectangle extends AbstractShape implements Shape {
   draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
     const width = this.to.x - this.from.x;
     const height = this.to.y - this.from.y;
+
     if (drawOptions.marked) {
       const oldStyle = ctx.strokeStyle;
       ctx.strokeStyle = MARKED.style;
-      ctx.beginPath();
       ctx.strokeRect(
         this.from.x - MARKED.width * Math.sign(width),
         this.from.y - MARKED.width * Math.sign(height),
@@ -199,13 +220,13 @@ class Rectangle extends AbstractShape implements Shape {
       );
       ctx.strokeStyle = oldStyle;
     }
+
     ctx.beginPath();
-    ctx.strokeRect(
-      this.from.x,
-      this.from.y,
-      this.to.x - this.from.x,
-      this.to.y - this.from.y
-    );
+    ctx.fillStyle = drawOptions.backgroundColor || this.backgroundColor;
+    ctx.strokeStyle = drawOptions.borderColor || this.borderColor;
+
+    ctx.fillRect(this.from.x, this.from.y, width, height);
+    ctx.strokeRect(this.from.x, this.from.y, width, height);
     ctx.stroke();
   }
 }
@@ -266,10 +287,13 @@ class Triangle extends AbstractShape implements Shape {
       ctx.strokeStyle = oldStyle;
     }
     ctx.beginPath();
+    ctx.fillStyle = drawOptions.backgroundColor || this.backgroundColor;
+    ctx.strokeStyle = drawOptions.borderColor || this.borderColor;
     ctx.moveTo(this.p1.x, this.p1.y);
     ctx.lineTo(this.p2.x, this.p2.y);
     ctx.lineTo(this.p3.x, this.p3.y);
     ctx.lineTo(this.p1.x, this.p1.y);
+    ctx.fill();
     ctx.stroke();
   }
 }
@@ -392,7 +416,43 @@ class SelectionManager {
         }
       }
       if (this.selectedShapes.length && e.button === 2) {
+        const backgroundColorOptions = {
+          transparent: "Transparent",
+          red: "Rot",
+          green: "Grün",
+          yellow: "Gelb",
+          blue: "Blau",
+          black: "Schwarz",
+        };
+
+        const borderColorOptions = {
+          red: "Rot",
+          green: "Grün",
+          yellow: "Gelb",
+          blue: "Blau",
+          black: "Schwarz",
+        };
+
         const menu = new Menu([
+          new RadioOption(
+            "Hintergrundfarbe",
+            backgroundColorOptions,
+            "transparent",
+            (value) => {
+              Object.values(this.selectedShapes).forEach((shape) => {
+                if (shape) shape[1].setBackgroundColor(value);
+              });
+              this.shapeManager.redraw();
+            }
+          ),
+          new SeparatorEntry(),
+          new RadioOption("Randfarbe", borderColorOptions, "black", (value) => {
+            Object.values(this.selectedShapes).forEach((shape) => {
+              if (shape) shape[1].setBorderColor(value);
+            });
+            this.shapeManager.redraw();
+          }),
+          new SeparatorEntry(),
           new MenuEntry("Löschen", () => {
             this.selectedShapes.forEach((e) =>
               this.shapeManager.removeShapeWithId(Number(e[0]))
