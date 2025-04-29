@@ -4,19 +4,26 @@
     <meta charset="UTF-8" />
     <title>Zeichenpogramm</title>
     <link rel="stylesheet" href="style.css" type="text/css" />
-    <script src="dist/drawer.js" type="application/javascript"></script>
+    <script src="dist/drawer.js" type="module"></script>
+    <link rel="stylesheet" href="context.css" />
   </head>
 
-  <body onload="init();">
-    <p>
-      Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
-      ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
-      Typischerweise, indem Sie die Maus drücken, dann mit gedrückter Maustaste
-      die Form bestimmen, und dann anschließend die Maustaste loslassen.
-    </p>
+  <body>
+    <!-- Required by context.js -->
+    <div id="teleport"></div>
+    <div id="shadow-box"></div>
+    <div>
+      <p>
+        Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
+        ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
+        Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
+        Maustaste die Form bestimmen, und dann anschließend die Maustaste
+        loslassen.
+      </p>
 
-    <ul class="tools"></ul>
+      <ul class="tools"></ul>
 
-    <canvas id="drawArea" width="1024" height="768"></canvas>
+      <canvas id="drawArea" width="1024" height="768"></canvas>
+    </div>
   </body>
 </html>

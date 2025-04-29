@@ -29,6 +29,10 @@
   background-color: #f1f1f1;
 }
 
+#teleport {
+  position: absolute;
+}
+
 #shadow-box.enabled {
   position: fixed;
   top: 0;

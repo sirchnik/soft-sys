@@ -1,3 +1,5 @@
+import { Menu, MenuEntry, SeparatorEntry } from "./context.js";
+
 const MARKED = { width: 4, style: "green" };
 const canvasWidth = 1024,
   canvasHeight = 768;
@@ -362,31 +364,47 @@ class SelectionManager {
     shapes: { [id: number]: Shape }
   ) {
     if (methodName === "handleMouseUp") {
-      if (e.altKey) {
-        this.altStepper++;
-      } else {
-        this.altStepper = 0;
+      if (e.button === 0) {
+        if (e.altKey) {
+          this.altStepper++;
+        } else {
+          this.altStepper = 0;
+        }
+        const shapesInMouseClick = Object.entries(shapes).filter(([_, v]) =>
+          v.isSelected(e)
+        );
+        let altShape = shapesInMouseClick[this.altStepper];
+        if (!altShape) {
+          this.altStepper = 0;
+          altShape = shapesInMouseClick[this.altStepper];
+        }
+
+        if (!altShape) {
+          if (!e.ctrlKey) {
+            this.selectedShapes = [];
+          }
+        } else {
+          if (e.ctrlKey) {
+            this.selectedShapes.push(altShape);
+          } else {
+            this.selectedShapes = [altShape];
+          }
+        }
       }
-      const shapesInMouseClick = Object.entries(shapes).filter(([_, v]) =>
-        v.isSelected(e)
-      );
-      let altShape = shapesInMouseClick[this.altStepper];
-      if (!altShape) {
-        this.altStepper = 0;
-        altShape = shapesInMouseClick[this.altStepper];
+      if (this.selectedShapes.length && e.button === 2) {
+        const menu = new Menu([
+          new MenuEntry("Löschen", () => {
+            this.selectedShapes.forEach((e) =>
+              this.shapeManager.removeShapeWithId(Number(e[0]))
+            );
+            menu.hide();
+          }),
+        ]);
+        menu.show(e.pageX, e.pageY);
       }
 
-      if (!altShape) {
-        return;
-      }
-
-      if (e.ctrlKey) {
-        this.selectedShapes.push(altShape);
-      } else {
-        this.selectedShapes = [altShape];
-      }
+      this.shapeManager.redraw();
     }
-    this.shapeManager.redraw();
   }
 
   getSelectedShapes(): { [id: number]: Shape | undefined } {
@@ -476,6 +494,8 @@ class Canvas implements ShapeManager {
 
   constructor(canvasDomElement: HTMLCanvasElement, private toolarea: ToolArea) {
     this.ctx = canvasDomElement.getContext("2d")!;
+
+    canvasDomElement.oncontextmenu = (e) => e.preventDefault();
 
     canvasDomElement.addEventListener("mousemove", this.handleMouseMove);
     canvasDomElement.addEventListener("mousedown", this.handleMouseDown);
@@ -584,4 +604,17 @@ function init() {
   const toolArea = new ToolArea(shapesSelector, menu[0], sm);
   canvas = new Canvas(canvasDomElm, toolArea);
   canvas.draw();
+}
+
+let canvasEle = document.getElementById("drawArea");
+if (canvasEle === null) {
+  document.addEventListener("DOMContentLoaded", () => {
+    canvasEle = document.getElementById("drawArea");
+    if (canvasEle === null) {
+      throw "App could not be loaded!";
+    }
+    init();
+  });
+} else {
+  init();
 }
