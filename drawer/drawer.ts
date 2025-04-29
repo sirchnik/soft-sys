@@ -351,7 +351,8 @@ class TriangleFactory implements ShapeFactory {
 class Shapes {}
 
 class SelectionManager {
-  private selectedShapes: { [id: number]: Shape | undefined } = {};
+  private selectedShapes: [id: number | string, Shape][] = [];
+  private altStepper = 0;
 
   constructor(private shapeManager: ShapeManager) {}
 
@@ -361,19 +362,40 @@ class SelectionManager {
     shapes: { [id: number]: Shape }
   ) {
     if (methodName === "handleMouseUp") {
-      this.selectedShapes = Object.fromEntries(
-        Object.entries(shapes).filter(([_, v]) => v.isSelected(e))
+      if (e.altKey) {
+        this.altStepper++;
+      } else {
+        this.altStepper = 0;
+      }
+      const shapesInMouseClick = Object.entries(shapes).filter(([_, v]) =>
+        v.isSelected(e)
       );
+      let altShape = shapesInMouseClick[this.altStepper];
+      if (!altShape) {
+        this.altStepper = 0;
+        altShape = shapesInMouseClick[this.altStepper];
+      }
+
+      if (!altShape) {
+        return;
+      }
+
+      if (e.ctrlKey) {
+        this.selectedShapes.push(altShape);
+      } else {
+        this.selectedShapes = [altShape];
+      }
     }
     this.shapeManager.redraw();
   }
 
   getSelectedShapes(): { [id: number]: Shape | undefined } {
-    return this.selectedShapes;
+    return Object.fromEntries(this.selectedShapes);
   }
 
   clearSelection(): void {
-    this.selectedShapes = {};
+    this.selectedShapes = [];
+    this.altStepper = 0;
     this.shapeManager.redraw();
   }
 }
