@@ -11,6 +11,7 @@ type DrawOptions = { marked?: boolean };
 interface Shape {
   readonly id: number;
   draw(ctx: CanvasRenderingContext2D, drawOptions?: DrawOptions): void;
+  isSelected(e: MouseEvent): boolean;
 }
 class Point2D {
   constructor(readonly x: number, readonly y: number) {}
@@ -65,6 +66,22 @@ class Line extends AbstractShape implements Shape {
   constructor(readonly from: Point2D, readonly to: Point2D) {
     super();
   }
+  isSelected(e: MouseEvent): boolean {
+    const dx1 = e.offsetX - this.from.x;
+    const dy1 = e.offsetY - this.from.y;
+    const dx2 = e.offsetX - this.to.x;
+    const dy2 = e.offsetY - this.to.y;
+
+    const distanceFromStart = Math.sqrt(dx1 * dx1 + dy1 * dy1);
+    const distanceFromEnd = Math.sqrt(dx2 * dx2 + dy2 * dy2);
+    const lineLength = Math.sqrt(
+      Math.pow(this.to.x - this.from.x, 2) +
+        Math.pow(this.to.y - this.from.y, 2)
+    );
+
+    const buffer = 5;
+    return Math.abs(distanceFromStart + distanceFromEnd - lineLength) <= buffer;
+  }
 
   draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
     if (drawOptions.marked) {
@@ -107,6 +124,12 @@ class Circle extends AbstractShape implements Shape {
   constructor(readonly center: Point2D, readonly radius: number) {
     super();
   }
+  isSelected(e: MouseEvent): boolean {
+    const dx = e.offsetX - this.center.x;
+    const dy = e.offsetY - this.center.y;
+    return Math.sqrt(dx * dx + dy * dy) <= this.radius;
+  }
+
   draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
     if (drawOptions.marked) {
       ctx.beginPath();
@@ -146,6 +169,17 @@ class CircleFactory extends AbstractFactory<Circle> implements ShapeFactory {
 class Rectangle extends AbstractShape implements Shape {
   constructor(readonly from: Point2D, readonly to: Point2D) {
     super();
+  }
+  isSelected(e: MouseEvent): boolean {
+    const minX = Math.min(this.from.x, this.to.x);
+    const maxX = Math.max(this.from.x, this.to.x);
+    const minY = Math.min(this.from.y, this.to.y);
+    const maxY = Math.max(this.from.y, this.to.y);
+
+    const mouseX = this.from.x;
+    const mouseY = this.from.y;
+
+    return mouseX >= minX && mouseX <= maxX && mouseY >= minY && mouseY <= maxY;
   }
 
   draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
@@ -194,7 +228,25 @@ class Triangle extends AbstractShape implements Shape {
   ) {
     super();
   }
-  draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions) {
+  isSelected(e: MouseEvent): boolean {
+    const { offsetX: x, offsetY: y } = e;
+
+    // Helper function to calculate the area of a triangle
+    const calculateArea = (p1: Point2D, p2: Point2D, p3: Point2D): number =>
+      Math.abs(
+        (p1.x * (p2.y - p3.y) + p2.x * (p3.y - p1.y) + p3.x * (p1.y - p2.y)) / 2
+      );
+
+    const totalArea = calculateArea(this.p1, this.p2, this.p3);
+    const area1 = calculateArea(new Point2D(x, y), this.p2, this.p3);
+    const area2 = calculateArea(this.p1, new Point2D(x, y), this.p3);
+    const area3 = calculateArea(this.p1, this.p2, new Point2D(x, y));
+
+    // Check if the sum of the sub-triangle areas equals the total area
+    return Math.abs(totalArea - (area1 + area2 + area3)) < 0.01;
+  }
+
+  draw(ctx: CanvasRenderingContext2D, drawOptions: DrawOptions = {}) {
     if (drawOptions.marked) {
       ctx.beginPath();
       const oldStyle = ctx.strokeStyle;
@@ -298,9 +350,45 @@ class TriangleFactory implements ShapeFactory {
 
 class Shapes {}
 
+class SelectionManager {
+  private selectedShapes: { [id: number]: Shape | undefined } = {};
+
+  constructor(private shapeManager: ShapeManager) {}
+
+  handleSelection(
+    methodName: string,
+    e: MouseEvent,
+    shapes: { [id: number]: Shape }
+  ) {
+    if (methodName === "handleMouseUp") {
+      this.selectedShapes = Object.fromEntries(
+        Object.entries(shapes).filter(([_, v]) => v.isSelected(e))
+      );
+    }
+    this.shapeManager.redraw();
+  }
+
+  getSelectedShapes(): { [id: number]: Shape | undefined } {
+    return this.selectedShapes;
+  }
+
+  clearSelection(): void {
+    this.selectedShapes = {};
+    this.shapeManager.redraw();
+  }
+}
+
 class ToolArea {
   private selectedShape: ShapeFactory = undefined;
-  constructor(shapesSelector: ShapeFactory[], menue: Element) {
+  private selectionMode = false;
+  private selectionManager: SelectionManager;
+
+  constructor(
+    shapesSelector: ShapeFactory[],
+    menue: Element,
+    shapeManager: ShapeManager
+  ) {
+    this.selectionManager = new SelectionManager(shapeManager);
     const domElms = [];
     shapesSelector.forEach((sl) => {
       const domSelElement = document.createElement("li");
@@ -309,6 +397,7 @@ class ToolArea {
       domElms.push(domSelElement);
 
       domSelElement.addEventListener("click", () => {
+        this.selectionManager.clearSelection();
         selectFactory.call(this, sl, domSelElement);
       });
     });
@@ -321,11 +410,35 @@ class ToolArea {
       this.selectedShape = sl;
       // add class to the one that is selected currently
       domElm.classList.add("marked");
+      this.selectionMode = false;
     }
+
+    const domSelElement = document.createElement("li");
+    domSelElement.innerText = "Select";
+    menue.appendChild(domSelElement);
+    domElms.push(domSelElement);
+
+    domSelElement.addEventListener("click", () => {
+      this.selectionManager.clearSelection();
+      for (let j = 0; j < domElms.length; j++) {
+        domElms[j].classList.remove("marked");
+      }
+      domSelElement.classList.add("marked");
+      this.selectedShape = undefined;
+      this.selectionMode = true;
+    });
+  }
+
+  selectionModeActive() {
+    return this.selectionMode;
   }
 
   getSelectedShape(): ShapeFactory {
     return this.selectedShape;
+  }
+
+  getSelectionManager(): SelectionManager {
+    return this.selectionManager;
   }
 }
 
@@ -333,50 +446,54 @@ interface ShapeManager {
   addShape(shape: Shape, redraw?: boolean): this;
   removeShape(shape: Shape, redraw?: boolean): this;
   removeShapeWithId(id: number, redraw?: boolean): this;
+  redraw(): this;
 }
 class Canvas implements ShapeManager {
   private ctx: CanvasRenderingContext2D;
   private shapes: { [id: number]: Shape } = {};
-  private selectedShapes: { [id: number]: Shape | undefined } = {};
 
-  constructor(canvasDomElement: HTMLCanvasElement, toolarea: ToolArea) {
-    this.ctx = canvasDomElement.getContext("2d");
-    canvasDomElement.addEventListener(
-      "mousemove",
-      createMouseHandler("handleMouseMove")
-    );
-    canvasDomElement.addEventListener(
-      "mousedown",
-      createMouseHandler("handleMouseDown")
-    );
-    canvasDomElement.addEventListener(
-      "mouseup",
-      createMouseHandler("handleMouseUp")
-    );
+  constructor(canvasDomElement: HTMLCanvasElement, private toolarea: ToolArea) {
+    this.ctx = canvasDomElement.getContext("2d")!;
 
-    function createMouseHandler(methodName: string) {
-      return function (e) {
-        e = e || window.event;
+    canvasDomElement.addEventListener("mousemove", this.handleMouseMove);
+    canvasDomElement.addEventListener("mousedown", this.handleMouseDown);
+    canvasDomElement.addEventListener("mouseup", this.handleMouseUp);
+  }
+  redraw(): this {
+    return this.draw();
+  }
 
-        if ("object" === typeof e) {
-          const btnCode = e.button,
-            x = e.pageX - this.offsetLeft,
-            y = e.pageY - this.offsetTop,
-            ss = toolarea.getSelectedShape();
-          // if left mouse button is pressed,
-          // and if a tool is selected, do something
-          if (e.button === 0 && ss) {
-            const m = ss[methodName];
-            // This in the shapeFactory should be the factory itself.
-            m.call(ss, x, y);
-          }
-        }
-      };
+  private handleMouseMove = (e: MouseEvent) => {
+    this.handleMouse("handleMouseMove", e);
+  };
+
+  private handleMouseDown = (e: MouseEvent) => {
+    this.handleMouse("handleMouseDown", e);
+  };
+
+  private handleMouseUp = (e: MouseEvent) => {
+    this.handleMouse("handleMouseUp", e);
+  };
+
+  private handleMouse(methodName: string, e: MouseEvent) {
+    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (this.toolarea.selectionModeActive()) {
+      this.toolarea
+        .getSelectionManager()
+        .handleSelection(methodName, e, this.shapes);
+    }
+
+    const ss = this.toolarea.getSelectedShape();
+    if (e.button === 0 && ss && typeof ss[methodName] === "function") {
+      ss[methodName](x, y);
     }
   }
 
   draw(): this {
-    // TODO: it there a better way to reset the canvas?
+    // TODO: is there a better way to reset the canvas?
     this.ctx.beginPath();
     this.ctx.fillStyle = "lightgrey";
     this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
@@ -384,8 +501,13 @@ class Canvas implements ShapeManager {
 
     // draw shapes
     this.ctx.fillStyle = "black";
+    const selectedShapes = this.toolarea
+      .getSelectionManager()
+      .getSelectedShapes();
     for (let id in this.shapes) {
-      this.shapes[id].draw(this.ctx, { marked: !this.selectedShapes[id] });
+      this.shapes[id].draw(this.ctx, {
+        marked: this.toolarea.selectionModeActive() && !!selectedShapes[id],
+      });
     }
     return this;
   }
@@ -427,6 +549,9 @@ function init() {
     removeShapeWithId(id, rd) {
       return canvas.removeShapeWithId(id, rd);
     },
+    redraw() {
+      return canvas.redraw();
+    },
   };
   const shapesSelector: ShapeFactory[] = [
     new LineFactory(sm),
@@ -434,7 +559,7 @@ function init() {
     new RectangleFactory(sm),
     new TriangleFactory(sm),
   ];
-  const toolArea = new ToolArea(shapesSelector, menu[0]);
+  const toolArea = new ToolArea(shapesSelector, menu[0], sm);
   canvas = new Canvas(canvasDomElm, toolArea);
   canvas.draw();
 }
