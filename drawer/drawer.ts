@@ -653,6 +653,8 @@ class Canvas implements ShapeManager {
 
   moveToBack(shape: Shape): void {
     this.shapes = this.shapes.filter((s) => s.id !== shape.id);
+    // Umsortieren findet nicht bei jedem neuen Shape statt, sondern nur
+    // beim in den Vordergrund oder Hintergrund verschieben
     this.shapes.unshift(shape);
   }
 

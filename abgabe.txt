@@ -4,21 +4,26 @@ git clone ssh://git@gitlab.informatik.hs-augsburg.de:2222/niks/soft-sys.git
 
 cd soft-sys
 
-# Aufgabe 2.1
+cd drawer
 
-git checkout 035c6ea5f9e3d8650e4dfda68f0502a6410cf021
+# Aufgabe 3.1
 
-xdg-open file://$(realpath A2_1-Sticky-Sessions.drawio.svg)
+npx tsc
+python -m http.server 8123 &
+xdg-open http://localhost:8123
 
-# Aufgabe 2.2
+# Aufgabe 3.2
 
-git checkout 1a11219cdae58362234c68bc835175ed00507ef4
+git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
 
-xdg-open file://$(realpath A2.2.html)
+# Aufgabe 3.3
 
-# Aufgabe 2.3
+git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
 
-git checkout 1bd9c034a9c13b981c9db16952d2a1cfeb49c839
+# Aufgabe 3.4
 
-python -m http.server&
-xdg-open http://localhost:8000/A2.3.html
+#    // Umsortieren findet nicht bei jedem neuen Shape statt, sondern nur
+#    // beim in den Vordergrund oder Hintergrund verschieben
+#    // Maker sind bleiben in der gleichen Ebene wie Shapes, da dies keine Anforderung der Aufgabenstellung war.
+
+git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
