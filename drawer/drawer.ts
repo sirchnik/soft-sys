@@ -1,6 +1,6 @@
 import { Menu, MenuEntry, SeparatorEntry, RadioOption } from "./context.js";
 
-const MARKED = { width: 4, style: "green" };
+const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
   canvasHeight = 768;
 interface ShapeFactory {
@@ -9,8 +9,15 @@ interface ShapeFactory {
   handleMouseUp(x: number, y: number): void;
   handleMouseMove(x: number, y: number): void;
 }
-type DrawOptions = {
-  marked?: boolean;
+type DrawOptions = (
+  | {
+      marked?: false;
+    }
+  | {
+      marked: true;
+      markedColor: string;
+    }
+) & {
   backgroundColor?: string;
   borderColor?: string;
 };
@@ -107,18 +114,18 @@ class Line extends AbstractShape implements Shape {
     if (drawOptions.marked) {
       ctx.beginPath();
       const oldStyle = ctx.strokeStyle;
-      ctx.strokeStyle = MARKED.style;
+      ctx.strokeStyle = drawOptions.markedColor;
       ctx.strokeRect(
-        this.from.x - MARKED.width,
-        this.from.y - MARKED.width,
-        MARKED.width * 2,
-        MARKED.width * 2
+        this.from.x - MARKED_WIDTH,
+        this.from.y - MARKED_WIDTH,
+        MARKED_WIDTH * 2,
+        MARKED_WIDTH * 2
       );
       ctx.strokeRect(
-        this.to.x - MARKED.width,
-        this.to.y - MARKED.width,
-        MARKED.width * 2,
-        MARKED.width * 2
+        this.to.x - MARKED_WIDTH,
+        this.to.y - MARKED_WIDTH,
+        MARKED_WIDTH * 2,
+        MARKED_WIDTH * 2
       );
       ctx.stroke();
       ctx.strokeStyle = oldStyle;
@@ -154,12 +161,12 @@ class Circle extends AbstractShape implements Shape {
     if (drawOptions.marked) {
       ctx.beginPath();
       const oldStyle = ctx.strokeStyle;
-      ctx.strokeStyle = MARKED.style;
+      ctx.strokeStyle = drawOptions.markedColor;
       ctx.rect(
-        this.center.x - this.radius - MARKED.width,
-        this.center.y - this.radius - MARKED.width,
-        this.radius * 2 + MARKED.width * 2,
-        this.radius * 2 + MARKED.width * 2
+        this.center.x - this.radius - MARKED_WIDTH,
+        this.center.y - this.radius - MARKED_WIDTH,
+        this.radius * 2 + MARKED_WIDTH * 2,
+        this.radius * 2 + MARKED_WIDTH * 2
       );
       ctx.stroke();
       ctx.strokeStyle = oldStyle;
@@ -211,12 +218,12 @@ class Rectangle extends AbstractShape implements Shape {
 
     if (drawOptions.marked) {
       const oldStyle = ctx.strokeStyle;
-      ctx.strokeStyle = MARKED.style;
+      ctx.strokeStyle = drawOptions.markedColor;
       ctx.strokeRect(
-        this.from.x - MARKED.width * Math.sign(width),
-        this.from.y - MARKED.width * Math.sign(height),
-        width + MARKED.width * 2 * Math.sign(width),
-        height + MARKED.width * 2 * Math.sign(height)
+        this.from.x - MARKED_WIDTH * Math.sign(width),
+        this.from.y - MARKED_WIDTH * Math.sign(height),
+        width + MARKED_WIDTH * 2 * Math.sign(width),
+        height + MARKED_WIDTH * 2 * Math.sign(height)
       );
       ctx.strokeStyle = oldStyle;
     }
@@ -273,16 +280,16 @@ class Triangle extends AbstractShape implements Shape {
     if (drawOptions.marked) {
       ctx.beginPath();
       const oldStyle = ctx.strokeStyle;
-      ctx.strokeStyle = MARKED.style;
+      ctx.strokeStyle = drawOptions.markedColor;
       const minX = Math.min(this.p1.x, this.p2.x, this.p3.x);
       const minY = Math.min(this.p1.y, this.p2.y, this.p3.y);
       const maxX = Math.max(this.p1.x, this.p2.x, this.p3.x);
       const maxY = Math.max(this.p1.y, this.p2.y, this.p3.y);
       ctx.strokeRect(
-        minX - MARKED.width,
-        minY - MARKED.width,
-        maxX - minX + MARKED.width * 2,
-        maxY - minY + MARKED.width * 2
+        minX - MARKED_WIDTH,
+        minY - MARKED_WIDTH,
+        maxX - minX + MARKED_WIDTH * 2,
+        maxY - minY + MARKED_WIDTH * 2
       );
       ctx.strokeStyle = oldStyle;
     }
@@ -626,6 +633,7 @@ class Canvas implements ShapeManager {
       shape.draw(this.ctx, {
         marked:
           this.toolarea.selectionModeActive() && !!selectedShapes[shape.id],
+        markedColor: "green",
       });
     }
     return this;

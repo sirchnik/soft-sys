@@ -8,17 +8,19 @@ cd drawer
 
 # Aufgabe 3.1
 
+git checkout 68a5465ede1ba70f80e4acb1f9c4c89d3fe7dd37
+rm -rf dist/
 npx tsc
 python -m http.server 8123 &
 xdg-open http://localhost:8123
 
 # Aufgabe 3.2
 
-git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
+git checkout 68a5465ede1ba70f80e4acb1f9c4c89d3fe7dd37
 
 # Aufgabe 3.3
 
-git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
+git checkout 68a5465ede1ba70f80e4acb1f9c4c89d3fe7dd37
 
 # Aufgabe 3.4
 
@@ -26,4 +28,4 @@ git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
 #    // beim in den Vordergrund oder Hintergrund verschieben
 #    // Maker sind bleiben in der gleichen Ebene wie Shapes, da dies keine Anforderung der Aufgabenstellung war.
 
-git checkout 4b60becaefb6b7f94dff1c26a6121c93a04bbf5f
+git checkout 68a5465ede1ba70f80e4acb1f9c4c89d3fe7dd37
