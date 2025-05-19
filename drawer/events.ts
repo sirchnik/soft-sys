@@ -6,22 +6,19 @@ export enum EventTypes {
   SET_BACKGROUND_COLOR_EVENT = "SET_BACKGROUND_COLOR",
   SET_BORDER_COLOR_EVENT = "SET_BORDER_COLOR",
   CLEAR_CANVAS_EVENT = "CLEAR_CANVAS_EVENT",
-  // SELECTION_CLEARED_EVENT = "SELECTION_CLEARED", // Example if needed
 }
 
-// Define Point2D structure for event payloads
 export interface Point2D {
   readonly x: number;
   readonly y: number;
 }
 
-// Define a base payload for shape properties
 export interface BaseShapePayload {
-  id: number; // ID is mandatory for an existing shape being added/recreated
+  id: number;
   shapeType: "Line" | "Circle" | "Rectangle" | "Triangle";
   backgroundColor?: string;
   borderColor?: string;
-  temporary?: boolean; // For temporary shapes like rubber bands
+  temporary?: boolean; // for creating new shapes
   forTriangleFactory?: boolean; // Special flag for triangle factory's temp lines
 }
 
@@ -34,7 +31,7 @@ export type AddShapePayload = BaseShapePayload &
   );
 
 export type DomainEvent = {
-  timestamp?: number; // Timestamp will be set by EventBus dispatch
+  timestamp?: number;
 } & (
   | {
       type: EventTypes.ADD_SHAPE_EVENT;
@@ -79,17 +76,14 @@ export type DomainEvent = {
       payload: {}; // No specific payload needed
     }
 );
-// | { type: EventTypes.SELECTION_CLEARED_EVENT; payload: {} }
 
 export type EventHandler<E extends DomainEvent> = (event: E) => void;
 
-// New type for storing subscribers in a typesafe way
 type TypedSubscribers = {
   [T in EventTypes]?: Array<EventHandler<Extract<DomainEvent, { type: T }>>>;
 };
 
 export class EventBus {
-  // Changed subscribers to use TypedSubscribers for better type safety
   private subscribers: TypedSubscribers = {};
   private allEventsSubscribers: EventHandler<DomainEvent>[] = [];
 
@@ -100,8 +94,7 @@ export class EventBus {
     if (!this.subscribers[eventType]) {
       this.subscribers[eventType] = [];
     }
-    // The type assertion is no longer needed due to the improved signature
-    this.subscribers[eventType]!.push(handler);
+    this.subscribers[eventType].push(handler);
   }
 
   subscribeToAll(handler: EventHandler<DomainEvent>): void {
@@ -114,12 +107,9 @@ export class EventBus {
       timestamp: event.timestamp || Date.now(),
     };
 
-    // Retrieve handlers in a typesafe manner
     const handlers = this.subscribers[completeEvent.type];
     if (handlers) {
-      // Call each handler with the correctly typed event
       handlers.forEach((handlerCallback) => {
-        // Renamed 'handler' to 'handlerCallback' to avoid shadowing
         try {
           handlerCallback(completeEvent);
         } catch (error) {

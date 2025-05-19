@@ -54,7 +54,7 @@ class AbstractShape {
   constructor(id?: number) {
     this.id = id === undefined ? AbstractShape.counter++ : id;
     if (id !== undefined && id >= AbstractShape.counter) {
-      AbstractShape.counter = id + 1; // Ensure new shapes get unique IDs
+      AbstractShape.counter = id + 1;
     }
   }
 
@@ -600,7 +600,6 @@ class SelectionManager {
       initialColor,
       (value) => {
         this.selectedShapes.forEach(([, shape]) => {
-          // Destructure to get Shape
           eventBus.dispatch({
             type: EventTypes.SET_BORDER_COLOR_EVENT,
             payload: { shapeId: shape.id, color: value },
@@ -613,7 +612,6 @@ class SelectionManager {
   private _createDeleteEntry(hideMenuCallback: () => void): MenuEntry {
     return new MenuEntry("Löschen", () => {
       this.selectedShapes.forEach(([id]) => {
-        // Destructure to get id
         eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
           payload: { shapeId: Number(id) },
@@ -799,13 +797,13 @@ interface ShapeManager {
   moveToFront(shape: Shape): void;
   moveToBack(shape: Shape): void;
   getShapeById(id: number): Shape | undefined;
-  recreateShape(payload: AddShapePayload): Shape | undefined; // Updated to use AddShapePayload
+  recreateShape(payload: AddShapePayload): Shape | undefined;
   clearAllShapes(): void;
 }
 class Canvas implements ShapeManager {
   private ctx: CanvasRenderingContext2D;
   private shapes: Shape[] = [];
-  private temporaryShapes: Shape[] = []; // For shapes like rubber band lines
+  private temporaryShapes: Shape[] = [];
 
   constructor(canvasDomElement: HTMLCanvasElement, private toolarea: ToolArea) {
     this.ctx = canvasDomElement.getContext("2d")!;
@@ -1010,9 +1008,6 @@ class Canvas implements ShapeManager {
   }
 
   private getShapesMap(): { [id: number]: Shape } {
-    // Combine shapes and temporaryShapes for selection purposes if needed,
-    // but selection usually applies to persistent shapes.
-    // For now, only main shapes are selectable.
     return Object.fromEntries(this.shapes.map((s) => [s.id, s]));
   }
 }
@@ -1047,11 +1042,9 @@ function init() {
       return canvas.redraw();
     },
     moveToFront(shape) {
-      // Direct modification for now, event handler will call this
       canvas.moveToFront(shape);
     },
     moveToBack(shape) {
-      // Direct modification for now, event handler will call this
       canvas.moveToBack(shape);
     },
     getShapeById(id) {
