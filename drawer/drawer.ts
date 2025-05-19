@@ -492,132 +492,231 @@ class TriangleFactory implements ShapeFactory {
   }
 }
 
-class Shapes {}
-
 class SelectionManager {
   private selectedShapes: [id: number | string, Shape][] = [];
   private altStepper = 0;
 
   constructor(private shapeManager: ShapeManager) {}
 
-  handleSelection(
+  private _getShapeToSelectFromClick(
+    e: MouseEvent,
+    shapes: { [id: number]: Shape }
+  ): [string, Shape] | undefined {
+    if (e.altKey) {
+      this.altStepper++;
+    } else {
+      this.altStepper = 0;
+    }
+
+    const shapesInMouseClick = Object.entries(shapes).filter(([_, v]) =>
+      v.isSelected(e)
+    );
+
+    if (shapesInMouseClick.length > 0) {
+      if (this.altStepper >= shapesInMouseClick.length) {
+        this.altStepper = 0;
+      }
+      return shapesInMouseClick[this.altStepper];
+    }
+    return undefined;
+  }
+
+  private _updateSelectionWithShape(
+    e: MouseEvent,
+    clickedShapeEntry: [string, Shape]
+  ): void {
+    const clickedShapeIdString = clickedShapeEntry[0];
+    const actualClickedShapeEntry = clickedShapeEntry;
+
+    if (e.ctrlKey) {
+      const isAlreadySelected = this.selectedShapes.some(
+        (entry) => entry[0] === clickedShapeIdString
+      );
+      if (isAlreadySelected) {
+        this.selectedShapes = this.selectedShapes.filter(
+          (entry) => entry[0] !== clickedShapeIdString
+        );
+      } else {
+        this.selectedShapes.push(actualClickedShapeEntry);
+      }
+    } else {
+      this.selectedShapes = [actualClickedShapeEntry];
+    }
+  }
+
+  private processLeftClickSelection(
+    e: MouseEvent,
+    shapes: { [id: number]: Shape }
+  ): void {
+    const clickedShapeEntry = this._getShapeToSelectFromClick(e, shapes);
+
+    if (!clickedShapeEntry) {
+      if (!e.ctrlKey) {
+        this.clearSelection();
+      }
+      // If Ctrl is held and no shape is clicked, selection remains unchanged.
+    } else {
+      // A shape was clicked
+      this._updateSelectionWithShape(e, clickedShapeEntry);
+    }
+  }
+
+  private _createBackgroundColorOption(initialColor: string): RadioOption {
+    const backgroundColorOptions = {
+      transparent: "Transparent",
+      red: "Rot",
+      green: "Grün",
+      yellow: "Gelb",
+      blue: "Blau",
+      black: "Schwarz",
+    };
+    return new RadioOption(
+      "Hintergrundfarbe",
+      backgroundColorOptions,
+      initialColor,
+      (value) => {
+        this.selectedShapes.forEach(([, shape]) => {
+          // Destructure to get Shape
+          eventBus.dispatch({
+            type: EventTypes.SET_BACKGROUND_COLOR_EVENT,
+            payload: { shapeId: shape.id, color: value },
+          });
+        });
+      }
+    );
+  }
+
+  private _createBorderColorOption(initialColor: string): RadioOption {
+    const borderColorOptions = {
+      red: "Rot",
+      green: "Grün",
+      yellow: "Gelb",
+      blue: "Blau",
+      black: "Schwarz",
+    };
+    return new RadioOption(
+      "Randfarbe",
+      borderColorOptions,
+      initialColor,
+      (value) => {
+        this.selectedShapes.forEach(([, shape]) => {
+          // Destructure to get Shape
+          eventBus.dispatch({
+            type: EventTypes.SET_BORDER_COLOR_EVENT,
+            payload: { shapeId: shape.id, color: value },
+          });
+        });
+      }
+    );
+  }
+
+  private _createDeleteEntry(hideMenuCallback: () => void): MenuEntry {
+    return new MenuEntry("Löschen", () => {
+      this.selectedShapes.forEach(([id]) => {
+        // Destructure to get id
+        eventBus.dispatch({
+          type: EventTypes.REMOVE_SHAPE_EVENT,
+          payload: { shapeId: Number(id) },
+        });
+      });
+      hideMenuCallback();
+      this.clearSelection();
+    });
+  }
+
+  private _createMoveToFrontEntry(
+    shapeId: number,
+    hideMenuCallback: () => void
+  ): MenuEntry {
+    return new MenuEntry("In den Vordergrund", () => {
+      eventBus.dispatch({
+        type: EventTypes.MOVE_TO_FRONT_EVENT,
+        payload: { shapeId: shapeId },
+      });
+      hideMenuCallback();
+    });
+  }
+
+  private _createMoveToBackEntry(
+    shapeId: number,
+    hideMenuCallback: () => void
+  ): MenuEntry {
+    return new MenuEntry("In den Hintergrund", () => {
+      eventBus.dispatch({
+        type: EventTypes.MOVE_TO_BACK_EVENT,
+        payload: { shapeId: shapeId },
+      });
+      hideMenuCallback();
+    });
+  }
+
+  private showContextMenu(e: MouseEvent): void {
+    if (this.selectedShapes.length === 0) return;
+
+    const menuItems: (MenuEntry | SeparatorEntry | RadioOption)[] = [];
+    let menu: Menu; // To be captured by closures for hideMenuCallback
+
+    const hideMenu = () => {
+      if (menu) menu.hide();
+    };
+
+    const firstSelectedShape = this.selectedShapes[0][1];
+    // Ensure the shape is an instance of AbstractShape to access color properties
+    const initialBackgroundColor =
+      firstSelectedShape instanceof AbstractShape
+        ? firstSelectedShape.backgroundColor
+        : "transparent";
+    const initialBorderColor =
+      firstSelectedShape instanceof AbstractShape
+        ? firstSelectedShape.borderColor
+        : "black";
+
+    menuItems.push(this._createBackgroundColorOption(initialBackgroundColor));
+    menuItems.push(new SeparatorEntry());
+    menuItems.push(this._createBorderColorOption(initialBorderColor));
+    menuItems.push(new SeparatorEntry());
+    menuItems.push(this._createDeleteEntry(hideMenu));
+
+    if (this.selectedShapes.length === 1) {
+      const singleSelectedShapeId = this.selectedShapes[0][1].id;
+      menuItems.push(new SeparatorEntry());
+      menuItems.push(
+        this._createMoveToFrontEntry(singleSelectedShapeId, hideMenu)
+      );
+      menuItems.push(
+        this._createMoveToBackEntry(singleSelectedShapeId, hideMenu)
+      );
+    }
+
+    menu = new Menu(menuItems);
+    menu.show(e.pageX, e.pageY);
+  }
+
+  public handleSelection(
     methodName: string,
     e: MouseEvent,
     shapes: { [id: number]: Shape }
-  ) {
+  ): void {
     if (methodName === "handleMouseUp") {
       if (e.button === 0) {
-        if (e.altKey) {
-          this.altStepper++;
-        } else {
-          this.altStepper = 0;
-        }
-        const shapesInMouseClick = Object.entries(shapes).filter(([_, v]) =>
-          v.isSelected(e)
-        );
-        let altShape = shapesInMouseClick[this.altStepper];
-        if (!altShape) {
-          this.altStepper = 0;
-          altShape = shapesInMouseClick[this.altStepper];
-        }
-
-        if (!altShape) {
-          if (!e.ctrlKey) {
-            this.selectedShapes = [];
-          }
-        } else {
-          if (e.ctrlKey) {
-            this.selectedShapes.push(altShape);
-          } else {
-            this.selectedShapes = [altShape];
-          }
+        // Left click
+        this.processLeftClickSelection(e, shapes);
+      } else if (e.button === 2) {
+        // Right click
+        if (this.selectedShapes.length > 0) {
+          this.showContextMenu(e);
         }
       }
-      if (this.selectedShapes.length && e.button === 2) {
-        const backgroundColorOptions = {
-          transparent: "Transparent",
-          red: "Rot",
-          green: "Grün",
-          yellow: "Gelb",
-          blue: "Blau",
-          black: "Schwarz",
-        };
-
-        const borderColorOptions = {
-          red: "Rot",
-          green: "Grün",
-          yellow: "Gelb",
-          blue: "Blau",
-          black: "Schwarz",
-        };
-
-        const menu = new Menu([
-          new RadioOption(
-            "Hintergrundfarbe",
-            backgroundColorOptions,
-            "transparent",
-            (value) => {
-              Object.values(this.selectedShapes).forEach((shapeEntry) => {
-                if (shapeEntry) {
-                  eventBus.dispatch({
-                    type: EventTypes.SET_BACKGROUND_COLOR_EVENT,
-                    payload: { shapeId: shapeEntry[1].id, color: value },
-                  });
-                }
-              });
-            }
-          ),
-          new SeparatorEntry(),
-          new RadioOption("Randfarbe", borderColorOptions, "black", (value) => {
-            Object.values(this.selectedShapes).forEach((shapeEntry) => {
-              if (shapeEntry) {
-                eventBus.dispatch({
-                  type: EventTypes.SET_BORDER_COLOR_EVENT,
-                  payload: { shapeId: shapeEntry[1].id, color: value },
-                });
-              }
-            });
-          }),
-          new SeparatorEntry(),
-          new MenuEntry("Löschen", () => {
-            this.selectedShapes.forEach((e) =>
-              eventBus.dispatch({
-                type: EventTypes.REMOVE_SHAPE_EVENT,
-                payload: { shapeId: Number(e[0]) },
-              })
-            );
-            menu.hide();
-            this.clearSelection();
-          }),
-          new SeparatorEntry(),
-          new MenuEntry("In den Vordergrund", () => {
-            this.selectedShapes.forEach((e) =>
-              eventBus.dispatch({
-                type: EventTypes.MOVE_TO_FRONT_EVENT,
-                payload: { shapeId: e[1].id },
-              })
-            );
-            menu.hide();
-          }),
-          new MenuEntry("In den Hintergrund", () => {
-            this.selectedShapes.forEach((e) =>
-              eventBus.dispatch({
-                type: EventTypes.MOVE_TO_BACK_EVENT,
-                payload: { shapeId: e[1].id },
-              })
-            );
-            menu.hide();
-          }),
-        ]);
-        menu.show(e.pageX, e.pageY);
-      }
-
       this.shapeManager.redraw();
     }
   }
 
   getSelectedShapes(): { [id: number]: Shape | undefined } {
-    return Object.fromEntries(this.selectedShapes);
+    const selectedMap: { [id: number]: Shape | undefined } = {};
+    this.selectedShapes.forEach((entry) => {
+      selectedMap[Number(entry[0])] = entry[1];
+    });
+    return selectedMap;
   }
 
   clearSelection(): void {
@@ -976,10 +1075,11 @@ function init() {
 
   // --- Event Handlers ---
   eventBus.subscribeToAll((event: DomainEvent) => {
-    if ("temporary" in event.payload && !event.payload.temporary) {
-      eventStreamTextArea.value += JSON.stringify(event) + "\n";
-      eventStreamTextArea.scrollTop = eventStreamTextArea.scrollHeight;
+    if ("temporary" in event.payload && event.payload.temporary) {
+      return;
     }
+    eventStreamTextArea.value += JSON.stringify(event) + "\n";
+    eventStreamTextArea.scrollTop = eventStreamTextArea.scrollHeight;
   });
 
   eventBus.subscribe(EventTypes.ADD_SHAPE_EVENT, (event) => {
@@ -1066,13 +1166,10 @@ function init() {
     });
     replayedEvents.sort((a, b) => a.timestamp - b.timestamp);
     replayedEvents.forEach((event) => {
-      if (
-        "temporary" in event.payload &&
-        !event.payload?.temporary &&
-        !(event.payload as any)?.forTriangleFactory
-      ) {
-        eventStreamTextArea.value += JSON.stringify(event) + "\n";
+      if ("temporary" in event.payload && event.payload?.temporary) {
+        return;
       }
+      eventStreamTextArea.value += JSON.stringify(event) + "\n";
     });
     eventStreamTextArea.scrollTop = eventStreamTextArea.scrollHeight;
 
