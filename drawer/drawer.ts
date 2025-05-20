@@ -33,9 +33,12 @@ type DrawOptions = (
   backgroundColor?: string;
   borderColor?: string;
 };
+type MouseEvents = "handleMouseUp" | "handleMouseMove" | "handleMouseDown";
 interface Shape {
   setBorderColor(value: string): unknown;
+  getBorderColor(): string;
   setBackgroundColor(value: string): unknown;
+  getBackgroundColor(): string;
   readonly id: number;
   draw(ctx: CanvasRenderingContext2D, drawOptions?: DrawOptions): void;
   isSelected(e: MouseEvent): boolean;
@@ -62,8 +65,16 @@ class AbstractShape {
     this.borderColor = color;
   }
 
+  getBorderColor(): string {
+    return this.borderColor;
+  }
+
   setBackgroundColor(color: string): void {
     this.backgroundColor = color;
+  }
+
+  getBackgroundColor(): string {
+    return this.backgroundColor;
   }
 }
 abstract class AbstractFactory<T extends Shape> {
@@ -73,7 +84,7 @@ abstract class AbstractFactory<T extends Shape> {
 
   constructor(readonly shapeManager: ShapeManager) {}
 
-  abstract createShape(from: Point2D, to: Point2D, id?: number): T; // Add optional id
+  abstract createShape(from: Point2D, to: Point2D, id?: number): T;
 
   handleMouseDown(x: number, y: number) {
     this.from = new Point2D(x, y);
@@ -493,24 +504,21 @@ class TriangleFactory implements ShapeFactory {
 }
 
 class SelectionManager {
-  private selectedShapes: [id: number | string, Shape][] = [];
+  private selectedShapes: Shape[] = [];
   private altStepper = 0;
 
   constructor(private shapeManager: ShapeManager) {}
 
-  private _getShapeToSelectFromClick(
-    e: MouseEvent,
-    shapes: { [id: number]: Shape }
-  ): [string, Shape] | undefined {
+  private _getShapeToSelectFromClick(e: MouseEvent): Shape | undefined {
     if (e.altKey) {
       this.altStepper++;
     } else {
       this.altStepper = 0;
     }
 
-    const shapesInMouseClick = Object.entries(shapes).filter(([_, v]) =>
-      v.isSelected(e)
-    );
+    const shapesInMouseClick = this.shapeManager
+      .getShapes()
+      .filter((shape) => shape.isSelected(e));
 
     if (shapesInMouseClick.length > 0) {
       if (this.altStepper >= shapesInMouseClick.length) {
@@ -521,47 +529,44 @@ class SelectionManager {
     return undefined;
   }
 
-  private _updateSelectionWithShape(
-    e: MouseEvent,
-    clickedShapeEntry: [string, Shape]
-  ): void {
-    const clickedShapeIdString = clickedShapeEntry[0];
-    const actualClickedShapeEntry = clickedShapeEntry;
+  private _selectShapeAtClick(e: MouseEvent): void {
+    const clickedShape = this._getShapeToSelectFromClick(e);
 
-    if (e.ctrlKey) {
-      const isAlreadySelected = this.selectedShapes.some(
-        (entry) => entry[0] === clickedShapeIdString
-      );
-      if (isAlreadySelected) {
-        this.selectedShapes = this.selectedShapes.filter(
-          (entry) => entry[0] !== clickedShapeIdString
-        );
-      } else {
-        this.selectedShapes.push(actualClickedShapeEntry);
-      }
-    } else {
-      this.selectedShapes = [actualClickedShapeEntry];
-    }
-  }
-
-  private processLeftClickSelection(
-    e: MouseEvent,
-    shapes: { [id: number]: Shape }
-  ): void {
-    const clickedShapeEntry = this._getShapeToSelectFromClick(e, shapes);
-
-    if (!clickedShapeEntry) {
+    if (!clickedShape) {
       if (!e.ctrlKey) {
         this.clearSelection();
       }
       // If Ctrl is held and no shape is clicked, selection remains unchanged.
     } else {
-      // A shape was clicked
-      this._updateSelectionWithShape(e, clickedShapeEntry);
+      if (e.ctrlKey) {
+        const isAlreadySelected = this.selectedShapes.some(
+          (entry) => entry.id === clickedShape.id
+        );
+        if (isAlreadySelected) {
+          this.selectedShapes = this.selectedShapes.filter(
+            (entry) => entry.id !== clickedShape.id
+          );
+        } else {
+          this.selectedShapes.push(clickedShape);
+        }
+      } else {
+        this.selectedShapes = [clickedShape];
+      }
     }
   }
 
-  private _createBackgroundColorOption(initialColor: string): RadioOption {
+  private _showContextMenu(e: MouseEvent): void {
+    if (this.selectedShapes.length === 0) return;
+
+    const menuItems: (MenuEntry | SeparatorEntry | RadioOption)[] = [];
+    let menu: Menu;
+
+    const hideMenu = () => {
+      if (menu) menu.hide();
+    };
+
+    const firstSelectedShape = this.selectedShapes[0];
+
     const backgroundColorOptions = {
       transparent: "Transparent",
       red: "Rot",
@@ -570,23 +575,25 @@ class SelectionManager {
       blue: "Blau",
       black: "Schwarz",
     };
-    return new RadioOption(
-      "Hintergrundfarbe",
-      backgroundColorOptions,
-      initialColor,
-      (value) => {
-        this.selectedShapes.forEach(([, shape]) => {
-          // Destructure to get Shape
-          eventBus.dispatch({
-            type: EventTypes.SET_BACKGROUND_COLOR_EVENT,
-            payload: { shapeId: shape.id, color: value },
+    menuItems.push(
+      new RadioOption(
+        "Hintergrundfarbe",
+        backgroundColorOptions,
+        firstSelectedShape.getBackgroundColor(),
+        (value) => {
+          this.selectedShapes.forEach((shape) => {
+            eventBus.dispatch({
+              type: EventTypes.SET_BACKGROUND_COLOR_EVENT,
+              payload: { shapeId: shape.id, color: value },
+            });
           });
-        });
-      }
+        }
+      )
     );
-  }
 
-  private _createBorderColorOption(initialColor: string): RadioOption {
+    menuItems.push(new SeparatorEntry());
+
+    // Inline Border Color Option
     const borderColorOptions = {
       red: "Rot",
       green: "Grün",
@@ -594,95 +601,60 @@ class SelectionManager {
       blue: "Blau",
       black: "Schwarz",
     };
-    return new RadioOption(
-      "Randfarbe",
-      borderColorOptions,
-      initialColor,
-      (value) => {
-        this.selectedShapes.forEach(([, shape]) => {
+    menuItems.push(
+      new RadioOption(
+        "Randfarbe",
+        borderColorOptions,
+        firstSelectedShape.getBorderColor(),
+        (value) => {
+          this.selectedShapes.forEach((shape) => {
+            eventBus.dispatch({
+              type: EventTypes.SET_BORDER_COLOR_EVENT,
+              payload: { shapeId: shape.id, color: value },
+            });
+          });
+        }
+      )
+    );
+
+    menuItems.push(new SeparatorEntry());
+
+    menuItems.push(
+      new MenuEntry("Löschen", () => {
+        this.selectedShapes.forEach((shape) => {
           eventBus.dispatch({
-            type: EventTypes.SET_BORDER_COLOR_EVENT,
-            payload: { shapeId: shape.id, color: value },
+            type: EventTypes.REMOVE_SHAPE_EVENT,
+            payload: { shapeId: Number(shape.id) },
           });
         });
-      }
+        hideMenu();
+        this.clearSelection();
+      })
     );
-  }
-
-  private _createDeleteEntry(hideMenuCallback: () => void): MenuEntry {
-    return new MenuEntry("Löschen", () => {
-      this.selectedShapes.forEach(([id]) => {
-        eventBus.dispatch({
-          type: EventTypes.REMOVE_SHAPE_EVENT,
-          payload: { shapeId: Number(id) },
-        });
-      });
-      hideMenuCallback();
-      this.clearSelection();
-    });
-  }
-
-  private _createMoveToFrontEntry(
-    shapeId: number,
-    hideMenuCallback: () => void
-  ): MenuEntry {
-    return new MenuEntry("In den Vordergrund", () => {
-      eventBus.dispatch({
-        type: EventTypes.MOVE_TO_FRONT_EVENT,
-        payload: { shapeId: shapeId },
-      });
-      hideMenuCallback();
-    });
-  }
-
-  private _createMoveToBackEntry(
-    shapeId: number,
-    hideMenuCallback: () => void
-  ): MenuEntry {
-    return new MenuEntry("In den Hintergrund", () => {
-      eventBus.dispatch({
-        type: EventTypes.MOVE_TO_BACK_EVENT,
-        payload: { shapeId: shapeId },
-      });
-      hideMenuCallback();
-    });
-  }
-
-  private showContextMenu(e: MouseEvent): void {
-    if (this.selectedShapes.length === 0) return;
-
-    const menuItems: (MenuEntry | SeparatorEntry | RadioOption)[] = [];
-    let menu: Menu; // To be captured by closures for hideMenuCallback
-
-    const hideMenu = () => {
-      if (menu) menu.hide();
-    };
-
-    const firstSelectedShape = this.selectedShapes[0][1];
-    // Ensure the shape is an instance of AbstractShape to access color properties
-    const initialBackgroundColor =
-      firstSelectedShape instanceof AbstractShape
-        ? firstSelectedShape.backgroundColor
-        : "transparent";
-    const initialBorderColor =
-      firstSelectedShape instanceof AbstractShape
-        ? firstSelectedShape.borderColor
-        : "black";
-
-    menuItems.push(this._createBackgroundColorOption(initialBackgroundColor));
-    menuItems.push(new SeparatorEntry());
-    menuItems.push(this._createBorderColorOption(initialBorderColor));
-    menuItems.push(new SeparatorEntry());
-    menuItems.push(this._createDeleteEntry(hideMenu));
 
     if (this.selectedShapes.length === 1) {
-      const singleSelectedShapeId = this.selectedShapes[0][1].id;
+      const shapeId = this.selectedShapes[0].id;
+
       menuItems.push(new SeparatorEntry());
+
       menuItems.push(
-        this._createMoveToFrontEntry(singleSelectedShapeId, hideMenu)
+        new MenuEntry("In den Vordergrund", () => {
+          eventBus.dispatch({
+            type: EventTypes.MOVE_TO_FRONT_EVENT,
+            payload: { shapeId },
+          });
+          hideMenu();
+        })
       );
+
       menuItems.push(
-        this._createMoveToBackEntry(singleSelectedShapeId, hideMenu)
+        new MenuEntry("In den Hintergrund", () => {
+          eventBus.dispatch({
+            type: EventTypes.MOVE_TO_BACK_EVENT,
+            payload: { shapeId },
+          });
+          hideMenu();
+        })
       );
     }
 
@@ -690,23 +662,18 @@ class SelectionManager {
     menu.show(e.pageX, e.pageY);
   }
 
-  public handleSelection(
-    methodName: string,
-    e: MouseEvent,
-    shapes: { [id: number]: Shape }
-  ): void {
-    if (methodName === "handleMouseUp") {
-      if (e.button === 0) {
-        // Left click
-        this.processLeftClickSelection(e, shapes);
-      } else if (e.button === 2) {
-        // Right click
+  public handleMouseDown(e: MouseEvent): void {
+    switch (e.button) {
+      case 0: // Left click
+        this._selectShapeAtClick(e);
+        return;
+      case 2: // Right click
         if (this.selectedShapes.length > 0) {
-          this.showContextMenu(e);
+          this._showContextMenu(e);
         }
-      }
-      this.shapeManager.redraw();
+        return;
     }
+    this.shapeManager.redraw();
   }
 
   getSelectedShapes(): { [id: number]: Shape | undefined } {
@@ -794,6 +761,7 @@ interface ShapeManager {
   removeShape(shape: Shape, redraw?: boolean, temporary?: boolean): this;
   removeShapeWithId(id: number, redraw?: boolean, temporary?: boolean): this;
   redraw(): this;
+  getShapes(): Shape[];
   moveToFront(shape: Shape): void;
   moveToBack(shape: Shape): void;
   getShapeById(id: number): Shape | undefined;
@@ -832,15 +800,15 @@ class Canvas implements ShapeManager {
     this.handleMouse("handleMouseUp", e);
   }
 
-  private handleMouse(methodName: string, e: MouseEvent): void {
+  private handleMouse(methodName: MouseEvents, e: MouseEvent): void {
     const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    const manager = this.toolarea.getSelectionManager();
     if (this.toolarea.selectionModeActive()) {
-      this.toolarea
-        .getSelectionManager()
-        .handleSelection(methodName, e, this.getShapesMap());
+      manager[methodName]?.(e);
+      return;
     }
 
     const currentTool = this.toolarea.getSelectedShape();
@@ -939,9 +907,7 @@ class Canvas implements ShapeManager {
     // Ensure temporary shapes from TriangleFactory (tmpLine) are handled correctly
     if (temporary) {
       // Check if it's the special tmpLine from TriangleFactory
-      const payload = (shape as any).toSerializable
-        ? (shape as any).toSerializable()
-        : {};
+      const payload = shape.toSerializable();
       if (payload.forTriangleFactory) {
         // Add to temporaryShapes, but it might be removed quickly by TriangleFactory itself
         const existingIndex = this.temporaryShapes.findIndex(
@@ -950,7 +916,7 @@ class Canvas implements ShapeManager {
         if (existingIndex !== -1) this.temporaryShapes.splice(existingIndex, 1); // remove if exists
         this.temporaryShapes.push(shape);
       } else {
-        // Standard temporary shape (e.g., rubber band for Line, Circle, Rectangle)
+        // Standard temporary shape
         const existingIndex = this.temporaryShapes.findIndex(
           (s) => s.id === shape.id
         );
@@ -971,7 +937,6 @@ class Canvas implements ShapeManager {
     redraw: boolean = true,
     temporary: boolean = false
   ): this {
-    // This method is less used now that removeShapeWithId is primary
     if (temporary) {
       this.temporaryShapes = this.temporaryShapes.filter(
         (s) => s.id !== _shape.id
@@ -1007,8 +972,8 @@ class Canvas implements ShapeManager {
     this.shapes.unshift(shape);
   }
 
-  private getShapesMap(): { [id: number]: Shape } {
-    return Object.fromEntries(this.shapes.map((s) => [s.id, s]));
+  getShapes() {
+    return this.shapes;
   }
 }
 
@@ -1037,6 +1002,9 @@ function init() {
     },
     removeShapeWithId(id, rd, temp) {
       return canvas.removeShapeWithId(id, rd, temp);
+    },
+    getShapes() {
+      return canvas.getShapes();
     },
     redraw() {
       return canvas.redraw();
