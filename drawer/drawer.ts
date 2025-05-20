@@ -51,7 +51,6 @@ class SelectionManager {
   private altStepper = 0;
   // Drag&Drop State
   private dragging = false;
-  private dragShape: Shape | undefined;
   private lastMousePos: { x: number; y: number } | undefined;
 
   constructor(
@@ -213,11 +212,8 @@ class SelectionManager {
   }
 
   private _startDragging(e: MouseEvent): void {
-    this.selectedShapes.forEach((shape) => {
-      this.dragging = true;
-      this.dragShape = shape;
-      this.lastMousePos = { x: e.offsetX, y: e.offsetY };
-    });
+    this.dragging = true;
+    this.lastMousePos = { x: e.offsetX, y: e.offsetY };
   }
 
   public handleMouseDown(e: MouseEvent): void {
@@ -239,55 +235,51 @@ class SelectionManager {
   }
 
   public handleMouseMove(e: MouseEvent): void {
-    if (this.dragging && this.dragShape && this.selectedShapes.length === 1) {
-      const shape = this.dragShape;
-      const dx = e.offsetX - this.lastMousePos!.x;
-      const dy = e.offsetY - this.lastMousePos!.y;
+    if (this.dragging) {
+      const dx = e.offsetX - this.lastMousePos.x;
+      const dy = e.offsetY - this.lastMousePos.y;
       this.lastMousePos = { x: e.offsetX, y: e.offsetY };
-      // Remove old shape
-      this.eventBus.dispatch({
-        type: EventTypes.REMOVE_SHAPE_EVENT,
-        payload: { shapeId: shape.id },
-      });
-      // Create new shape at new position
-      let newShape: Shape | undefined;
-      if (shape instanceof Line) {
-        const from = new Point2D(shape.from.x + dx, shape.from.y + dy);
-        const to = new Point2D(shape.to.x + dx, shape.to.y + dy);
-        newShape = new Line(from, to);
-      } else if (shape instanceof Rectangle) {
-        const from = new Point2D(shape.from.x + dx, shape.from.y + dy);
-        const to = new Point2D(shape.to.x + dx, shape.to.y + dy);
-        newShape = new Rectangle(from, to);
-      } else if (shape instanceof Circle) {
-        const center = new Point2D(shape.center.x + dx, shape.center.y + dy);
-        newShape = new Circle(center, shape.radius);
-      } else if (shape instanceof Triangle) {
-        const p1 = new Point2D(shape.p1.x + dx, shape.p1.y + dy);
-        const p2 = new Point2D(shape.p2.x + dx, shape.p2.y + dy);
-        const p3 = new Point2D(shape.p3.x + dx, shape.p3.y + dy);
-        newShape = new Triangle(p1, p2, p3);
-      }
-      if (newShape) {
-        newShape.setBackgroundColor(shape.getBackgroundColor());
-        newShape.setBorderColor(shape.getBorderColor());
-        this.selectedShapes = [newShape];
-        this.dragShape = newShape;
+      this.selectedShapes = this.selectedShapes.map((shape) => {
+        // Remove old shape
         this.eventBus.dispatch({
-          type: EventTypes.ADD_SHAPE_EVENT,
-          payload: {
-            ...newShape.toSerializable(),
-          },
+          type: EventTypes.REMOVE_SHAPE_EVENT,
+          payload: { shapeId: shape.id },
         });
-      }
-      this.shapeManager.redraw();
+        // Create new shape at new position
+        let newShape: Shape | undefined;
+        if (shape instanceof Line) {
+          const from = new Point2D(shape.from.x + dx, shape.from.y + dy);
+          const to = new Point2D(shape.to.x + dx, shape.to.y + dy);
+          newShape = new Line(from, to);
+        } else if (shape instanceof Rectangle) {
+          const from = new Point2D(shape.from.x + dx, shape.from.y + dy);
+          const to = new Point2D(shape.to.x + dx, shape.to.y + dy);
+          newShape = new Rectangle(from, to);
+        } else if (shape instanceof Circle) {
+          const center = new Point2D(shape.center.x + dx, shape.center.y + dy);
+          newShape = new Circle(center, shape.radius);
+        } else if (shape instanceof Triangle) {
+          const p1 = new Point2D(shape.p1.x + dx, shape.p1.y + dy);
+          const p2 = new Point2D(shape.p2.x + dx, shape.p2.y + dy);
+          const p3 = new Point2D(shape.p3.x + dx, shape.p3.y + dy);
+          newShape = new Triangle(p1, p2, p3);
+        }
+        if (newShape) {
+          newShape.setBackgroundColor(shape.getBackgroundColor());
+          newShape.setBorderColor(shape.getBorderColor());
+          this.eventBus.dispatch({
+            type: EventTypes.ADD_SHAPE_EVENT,
+            payload: newShape.toSerializable(),
+          });
+        }
+        return newShape;
+      });
     }
   }
 
   public handleMouseUp(e: MouseEvent): void {
     if (this.dragging) {
       this.dragging = false;
-      this.dragShape = undefined;
       this.lastMousePos = undefined;
     }
   }
