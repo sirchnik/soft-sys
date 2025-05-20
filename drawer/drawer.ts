@@ -143,7 +143,6 @@ class SelectionManager {
 
     menuItems.push(new SeparatorEntry());
 
-    // Inline Border Color Option
     const borderColorOptions = {
       red: "Rot",
       green: "Grün",
@@ -242,7 +241,6 @@ class SelectionManager {
       const dy = e.offsetY - this.lastMousePos.y;
       this.lastMousePos = { x: e.offsetX, y: e.offsetY };
       this.selectedShapes = this.selectedShapes.map((shape) => {
-        // Remove old shape (temporary)
         this.eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
           payload: {
@@ -251,7 +249,6 @@ class SelectionManager {
             noRedraw: true,
           },
         });
-        // Create new shape at new position using moveBy (temporary)
         const newShape = shape.moveBy(dx, dy);
         this.eventBus.dispatch({
           type: EventTypes.ADD_SHAPE_EVENT,
@@ -276,14 +273,11 @@ class SelectionManager {
       this.dragging = false;
       this.firstDrag = false;
       this.lastMousePos = undefined;
-      // On mouse up, record permanent events for the final position
       this.selectedShapes = this.selectedShapes.map((shape) => {
-        // Remove old shape (permanent)
         this.eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
           payload: { shapeId: shape.id, temporary: true, noRedraw: true },
         });
-        // Add new shape (permanent)
         this.eventBus.dispatch({
           type: EventTypes.ADD_SHAPE_EVENT,
           payload: { ...shape.toSerializable(), noRedraw: true },

@@ -165,9 +165,7 @@ export class TriangleFactory implements CanvasTool {
     }
   }
 
-  handleMouseUp(_e: MouseEvent) {
-    // Not strictly needed
-  }
+  handleMouseUp(_e: MouseEvent) {}
 
   handleMouseMove(e: MouseEvent) {
     const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();

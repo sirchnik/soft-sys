@@ -77,11 +77,11 @@ export type DomainEvent = {
     }
   | {
       type: EventTypes.CLEAR_CANVAS_EVENT;
-      payload: {}; // No specific payload needed
+      payload: {};
     }
   | {
       type: EventTypes.REDRAW_EVENT;
-      payload: {}; // No specific payload needed
+      payload: {};
     }
 );
 
