@@ -6,6 +6,7 @@ export enum EventTypes {
   SET_BACKGROUND_COLOR_EVENT = "SET_BACKGROUND_COLOR",
   SET_BORDER_COLOR_EVENT = "SET_BORDER_COLOR",
   CLEAR_CANVAS_EVENT = "CLEAR_CANVAS_EVENT",
+  REDRAW_EVENT = "REDRAW_EVENT",
 }
 
 export interface Point2D {
@@ -28,7 +29,9 @@ export type AddShapePayload = BaseShapePayload &
     | { shapeType: "Circle"; center: Point2D; radius: number }
     | { shapeType: "Rectangle"; from: Point2D; to: Point2D }
     | { shapeType: "Triangle"; p1: Point2D; p2: Point2D; p3: Point2D }
-  );
+  ) & {
+    noRedraw?: boolean;
+  };
 
 export type DomainEvent = {
   timestamp?: number;
@@ -43,6 +46,7 @@ export type DomainEvent = {
         shapeId: number;
         temporary?: boolean;
         forTriangleFactory?: boolean;
+        noRedraw?: boolean;
       };
     }
   | {
@@ -73,6 +77,10 @@ export type DomainEvent = {
     }
   | {
       type: EventTypes.CLEAR_CANVAS_EVENT;
+      payload: {}; // No specific payload needed
+    }
+  | {
+      type: EventTypes.REDRAW_EVENT;
       payload: {}; // No specific payload needed
     }
 );

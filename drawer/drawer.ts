@@ -24,7 +24,7 @@ import {
 
 export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
-  canvasHeight = 768;
+  canvasHeight = 500;
 
 export interface CanvasTool {
   label?: string;
@@ -51,6 +51,7 @@ class SelectionManager {
   private altStepper = 0;
   // Drag&Drop State
   private dragging = false;
+  private firstDrag = false;
   private lastMousePos: { x: number; y: number } | undefined;
 
   constructor(
@@ -213,6 +214,7 @@ class SelectionManager {
 
   private _startDragging(e: MouseEvent): void {
     this.dragging = true;
+    this.firstDrag = true;
     this.lastMousePos = { x: e.offsetX, y: e.offsetY };
   }
 
@@ -243,7 +245,7 @@ class SelectionManager {
         // Remove old shape (temporary)
         this.eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
-          payload: { shapeId: shape.id, temporary: true },
+          payload: { shapeId: shape.id, temporary: !this.firstDrag },
         });
         // Create new shape at new position using moveBy (temporary)
         const newShape = shape.moveBy(dx, dy);
@@ -254,11 +256,13 @@ class SelectionManager {
         return newShape;
       });
     }
+    this.firstDrag = false;
   }
 
   public handleMouseUp(e: MouseEvent): void {
     if (this.dragging) {
       this.dragging = false;
+      this.firstDrag = false;
       this.lastMousePos = undefined;
       // On mouse up, record permanent events for the final position
       this.selectedShapes = this.selectedShapes.map((shape) => {

@@ -70,7 +70,7 @@ export class LineFactory extends AbstractFactory<Line> implements CanvasTool {
   }
 
   createShape(from: Point2D, to: Point2D, id?: number): Line {
-    return new Line(from, to, id);
+    return new Line(from, to, { id });
   }
 }
 export class CircleFactory
@@ -84,7 +84,9 @@ export class CircleFactory
   }
 
   createShape(from: Point2D, to: Point2D, id?: number): Circle {
-    return new Circle(from, CircleFactory.computeRadius(from, to.x, to.y), id);
+    return new Circle(from, CircleFactory.computeRadius(from, to.x, to.y), {
+      id,
+    });
   }
 
   private static computeRadius(from: Point2D, x: number, y: number): number {
@@ -103,7 +105,7 @@ export class RectangleFactory
   }
 
   createShape(from: Point2D, to: Point2D, id?: number): Rectangle {
-    return new Rectangle(from, to, id);
+    return new Rectangle(from, to, { id });
   }
 }
 export class TriangleFactory implements CanvasTool {
