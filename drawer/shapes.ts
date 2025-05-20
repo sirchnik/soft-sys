@@ -9,14 +9,21 @@ export class Point2D implements EventPoint2D {
 export class AbstractShape {
   private static counter: number = 0;
   readonly id: number;
-  backgroundColor: string = "transparent";
-  borderColor: string = "black";
+  backgroundColor: string;
+  borderColor: string;
 
-  constructor(id?: number) {
+  constructor(options?: {
+    id?: number;
+    backgroundColor?: string;
+    borderColor?: string;
+  }) {
+    const id = options?.id;
     this.id = id === undefined ? AbstractShape.counter++ : id;
     if (id !== undefined && id >= AbstractShape.counter) {
       AbstractShape.counter = id + 1;
     }
+    this.backgroundColor = options?.backgroundColor ?? "transparent";
+    this.borderColor = options?.borderColor ?? "black";
   }
 
   setBorderColor(color: string): void {
@@ -36,8 +43,19 @@ export class AbstractShape {
   }
 }
 export class Line extends AbstractShape implements Shape {
-  constructor(readonly from: Point2D, readonly to: Point2D, id?: number) {
-    super(id);
+  constructor(
+    readonly from: Point2D,
+    readonly to: Point2D,
+    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+  ) {
+    super(options);
+  }
+  moveBy(dx: number, dy: number): Line {
+    return new Line(
+      new Point2D(this.from.x + dx, this.from.y + dy),
+      new Point2D(this.to.x + dx, this.to.y + dy),
+      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+    );
   }
   toSerializable(): AddShapePayload {
     return {
@@ -94,8 +112,19 @@ export class Line extends AbstractShape implements Shape {
   }
 }
 export class Circle extends AbstractShape implements Shape {
-  constructor(readonly center: Point2D, readonly radius: number, id?: number) {
-    super(id);
+  constructor(
+    readonly center: Point2D,
+    readonly radius: number,
+    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+  ) {
+    super(options);
+  }
+  moveBy(dx: number, dy: number): Circle {
+    return new Circle(
+      new Point2D(this.center.x + dx, this.center.y + dy),
+      this.radius,
+      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+    );
   }
   toSerializable(): AddShapePayload {
     return {
@@ -136,8 +165,19 @@ export class Circle extends AbstractShape implements Shape {
   }
 }
 export class Rectangle extends AbstractShape implements Shape {
-  constructor(readonly from: Point2D, readonly to: Point2D, id?: number) {
-    super(id);
+  constructor(
+    readonly from: Point2D,
+    readonly to: Point2D,
+    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+  ) {
+    super(options);
+  }
+  moveBy(dx: number, dy: number): Rectangle {
+    return new Rectangle(
+      new Point2D(this.from.x + dx, this.from.y + dy),
+      new Point2D(this.to.x + dx, this.to.y + dy),
+      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+    );
   }
   toSerializable(): AddShapePayload {
     return {
@@ -191,9 +231,17 @@ export class Triangle extends AbstractShape implements Shape {
     readonly p1: Point2D,
     readonly p2: Point2D,
     readonly p3: Point2D,
-    id?: number
+    options?: { id?: number; backgroundColor?: string; borderColor?: string }
   ) {
-    super(id);
+    super(options);
+  }
+  moveBy(dx: number, dy: number): Triangle {
+    return new Triangle(
+      new Point2D(this.p1.x + dx, this.p1.y + dy),
+      new Point2D(this.p2.x + dx, this.p2.y + dy),
+      new Point2D(this.p3.x + dx, this.p3.y + dy),
+      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+    );
   }
   toSerializable(): AddShapePayload {
     return {
@@ -261,4 +309,5 @@ export interface Shape {
   draw(ctx: CanvasRenderingContext2D, drawOptions?: DrawOptions): void;
   isSelected(e: MouseEvent): boolean;
   toSerializable(): AddShapePayload;
+  moveBy(dx: number, dy: number): Shape;
 }

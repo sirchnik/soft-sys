@@ -54,7 +54,7 @@ class SelectionManager {
   private lastMousePos: { x: number; y: number } | undefined;
 
   constructor(
-    private readonly shapeManager: ShapeManager,
+    private readonly localShapeManager: ShapeManager,
     private readonly eventBus: EventBus
   ) {}
 
@@ -65,7 +65,7 @@ class SelectionManager {
       this.altStepper = 0;
     }
 
-    const shapesInMouseClick = this.shapeManager
+    const shapesInMouseClick = this.localShapeManager
       .getShapes()
       .filter((shape) => shape.isSelected(e));
 
@@ -231,7 +231,7 @@ class SelectionManager {
         }
         break;
     }
-    this.shapeManager.redraw();
+    this.localShapeManager.redraw();
   }
 
   public handleMouseMove(e: MouseEvent): void {
@@ -240,38 +240,17 @@ class SelectionManager {
       const dy = e.offsetY - this.lastMousePos.y;
       this.lastMousePos = { x: e.offsetX, y: e.offsetY };
       this.selectedShapes = this.selectedShapes.map((shape) => {
-        // Remove old shape
+        // Remove old shape (temporary)
         this.eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
-          payload: { shapeId: shape.id },
+          payload: { shapeId: shape.id, temporary: true },
         });
-        // Create new shape at new position
-        let newShape: Shape | undefined;
-        if (shape instanceof Line) {
-          const from = new Point2D(shape.from.x + dx, shape.from.y + dy);
-          const to = new Point2D(shape.to.x + dx, shape.to.y + dy);
-          newShape = new Line(from, to);
-        } else if (shape instanceof Rectangle) {
-          const from = new Point2D(shape.from.x + dx, shape.from.y + dy);
-          const to = new Point2D(shape.to.x + dx, shape.to.y + dy);
-          newShape = new Rectangle(from, to);
-        } else if (shape instanceof Circle) {
-          const center = new Point2D(shape.center.x + dx, shape.center.y + dy);
-          newShape = new Circle(center, shape.radius);
-        } else if (shape instanceof Triangle) {
-          const p1 = new Point2D(shape.p1.x + dx, shape.p1.y + dy);
-          const p2 = new Point2D(shape.p2.x + dx, shape.p2.y + dy);
-          const p3 = new Point2D(shape.p3.x + dx, shape.p3.y + dy);
-          newShape = new Triangle(p1, p2, p3);
-        }
-        if (newShape) {
-          newShape.setBackgroundColor(shape.getBackgroundColor());
-          newShape.setBorderColor(shape.getBorderColor());
-          this.eventBus.dispatch({
-            type: EventTypes.ADD_SHAPE_EVENT,
-            payload: newShape.toSerializable(),
-          });
-        }
+        // Create new shape at new position using moveBy (temporary)
+        const newShape = shape.moveBy(dx, dy);
+        this.eventBus.dispatch({
+          type: EventTypes.ADD_SHAPE_EVENT,
+          payload: { ...newShape.toSerializable(), temporary: true },
+        });
         return newShape;
       });
     }
@@ -281,6 +260,20 @@ class SelectionManager {
     if (this.dragging) {
       this.dragging = false;
       this.lastMousePos = undefined;
+      // On mouse up, record permanent events for the final position
+      this.selectedShapes = this.selectedShapes.map((shape) => {
+        // Remove old shape (permanent)
+        this.eventBus.dispatch({
+          type: EventTypes.REMOVE_SHAPE_EVENT,
+          payload: { shapeId: shape.id },
+        });
+        // Add new shape (permanent)
+        this.eventBus.dispatch({
+          type: EventTypes.ADD_SHAPE_EVENT,
+          payload: { ...shape.toSerializable() },
+        });
+        return shape;
+      });
     }
   }
 
@@ -294,7 +287,7 @@ class SelectionManager {
     this.selectedShapes = [];
     this.altStepper = 0;
     // Redraw is needed to remove selection highlights
-    this.shapeManager.redraw();
+    this.localShapeManager.redraw();
   }
 }
 
@@ -405,10 +398,6 @@ class Canvas implements ShapeManager, CanvasTool {
   }
 
   private handleMouse(methodName: MouseEvents, e: MouseEvent): void {
-    const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
     const manager = this.toolarea.getSelectionManager();
     if (this.toolarea.selectionModeActive()) {
       manager[methodName]?.(e);
@@ -449,21 +438,18 @@ class Canvas implements ShapeManager, CanvasTool {
 
     switch (payload.shapeType) {
       case "Line":
-        shape = new Line(p(payload.from)!, p(payload.to)!, id);
+        shape = new Line(p(payload.from)!, p(payload.to)!, { id });
         break;
       case "Circle":
-        shape = new Circle(p(payload.center)!, payload.radius, id);
+        shape = new Circle(p(payload.center)!, payload.radius, { id });
         break;
       case "Rectangle":
-        shape = new Rectangle(p(payload.from)!, p(payload.to)!, id);
+        shape = new Rectangle(p(payload.from)!, p(payload.to)!, { id });
         break;
       case "Triangle":
-        shape = new Triangle(
-          p(payload.p1)!,
-          p(payload.p2)!,
-          p(payload.p3)!,
-          id
-        );
+        shape = new Triangle(p(payload.p1)!, p(payload.p2)!, p(payload.p3)!, {
+          id,
+        });
         break;
     }
     if (shape) {
