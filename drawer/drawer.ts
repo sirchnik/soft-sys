@@ -245,15 +245,27 @@ class SelectionManager {
         // Remove old shape (temporary)
         this.eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
-          payload: { shapeId: shape.id, temporary: !this.firstDrag },
+          payload: {
+            shapeId: shape.id,
+            temporary: !this.firstDrag,
+            noRedraw: true,
+          },
         });
         // Create new shape at new position using moveBy (temporary)
         const newShape = shape.moveBy(dx, dy);
         this.eventBus.dispatch({
           type: EventTypes.ADD_SHAPE_EVENT,
-          payload: { ...newShape.toSerializable(), temporary: true },
+          payload: {
+            ...newShape.toSerializable(),
+            temporary: true,
+            noRedraw: true,
+          },
         });
         return newShape;
+      });
+      this.eventBus.dispatch({
+        type: EventTypes.REDRAW_EVENT,
+        payload: {},
       });
     }
     this.firstDrag = false;
@@ -269,14 +281,18 @@ class SelectionManager {
         // Remove old shape (permanent)
         this.eventBus.dispatch({
           type: EventTypes.REMOVE_SHAPE_EVENT,
-          payload: { shapeId: shape.id },
+          payload: { shapeId: shape.id, temporary: true, noRedraw: true },
         });
         // Add new shape (permanent)
         this.eventBus.dispatch({
           type: EventTypes.ADD_SHAPE_EVENT,
-          payload: { ...shape.toSerializable() },
+          payload: { ...shape.toSerializable(), noRedraw: true },
         });
         return shape;
+      });
+      this.eventBus.dispatch({
+        type: EventTypes.REDRAW_EVENT,
+        payload: {},
       });
     }
   }
@@ -636,7 +652,10 @@ function init() {
 
   // --- Event Handlers ---
   eventBus.subscribeToAll((event: DomainEvent) => {
-    if ("temporary" in event.payload && event.payload.temporary) {
+    if (
+      ("temporary" in event.payload && event.payload.temporary) ||
+      event.type === EventTypes.REDRAW_EVENT
+    ) {
       return;
     }
     eventStreamTextArea.value += JSON.stringify(event) + "\n";
@@ -646,14 +665,22 @@ function init() {
   eventBus.subscribe(EventTypes.ADD_SHAPE_EVENT, (event) => {
     const shape = sm.recreateShape(event.payload);
     if (shape) {
-      sm.addShape(shape, true, event.payload.temporary);
+      sm.addShape(shape, !event.payload.noRedraw, event.payload.temporary);
     } else {
       console.warn("Could not recreate shape from ADD_SHAPE_EVENT:", event);
     }
   });
 
   eventBus.subscribe(EventTypes.REMOVE_SHAPE_EVENT, (event) => {
-    sm.removeShapeWithId(event.payload.shapeId, true, event.payload.temporary);
+    sm.removeShapeWithId(
+      event.payload.shapeId,
+      !event.payload.noRedraw,
+      event.payload.temporary
+    );
+  });
+
+  eventBus.subscribe(EventTypes.REDRAW_EVENT, (_event) => {
+    sm.redraw();
   });
 
   eventBus.subscribe(EventTypes.MOVE_TO_FRONT_EVENT, (event) => {
