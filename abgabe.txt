@@ -6,26 +6,14 @@ cd soft-sys
 
 cd drawer
 
-# Aufgabe 3.1
+# Aufgabe 4.1
 
-git checkout c2c261f3e29ba2f804fe54254cb59f4ec0c82bcd
+git checkout 304949e42a449e0a744914b7b833a65e9f0a816d
 rm -rf dist/
 npx tsc
 python -m http.server 8123 &
 xdg-open http://localhost:8123
 
-# Aufgabe 3.2
+# Aufgabe 4.2
 
-git checkout c2c261f3e29ba2f804fe54254cb59f4ec0c82bcd
-
-# Aufgabe 3.3
-
-git checkout c2c261f3e29ba2f804fe54254cb59f4ec0c82bcd
-
-# Aufgabe 3.4
-
-#    // Umsortieren findet nicht bei jedem neuen Shape statt, sondern nur
-#    // beim in den Vordergrund oder Hintergrund verschieben
-#    // Maker sind bleiben in der gleichen Ebene wie Shapes, da dies keine Anforderung der Aufgabenstellung war.
-
-git checkout c2c261f3e29ba2f804fe54254cb59f4ec0c82bcd
+git checkout 304949e42a449e0a744914b7b833a65e9f0a816d
