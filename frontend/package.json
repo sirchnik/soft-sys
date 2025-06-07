@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "node live-server.cjs & esbuild --watch index.ts --bundle --outfile=dist/index.js --sourcemap",
-    "build": "esbuild index.ts --bundle --outfile=dist/index.js",
+    "dev": "node live-server.cjs & esbuild --watch src/index.ts --bundle --outfile=dist/index.js --sourcemap",
+    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
