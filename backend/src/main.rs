@@ -7,8 +7,8 @@ use routes::create_router;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use axum::Extension;
-use sqlx::sqlite::SqlitePoolOptions;
 use sqlx::SqlitePool;
+use sqlx::sqlite::SqlitePoolOptions;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -30,7 +30,9 @@ async fn main() {
         .await
         .unwrap();
 
-    let shared_state = AppState { db: Arc::new(pool) };
+    sqlx::migrate!().run(&pool).await.unwrap();
+
+    let shared_state = Arc::new(AppState { db: Arc::new(pool) });
 
     let app = create_router().layer(Extension(shared_state));
 

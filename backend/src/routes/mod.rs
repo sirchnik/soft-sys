@@ -1,11 +1,11 @@
 mod auth;
 
-use crate::routes::auth::{authorize, protected};
-use axum::routing::{get, post};
+use crate::routes::auth::{login, register};
 use axum::Router;
+use axum::routing::post;
 
 pub fn create_router() -> Router {
     Router::new()
-        .route("/protected", get(protected))
-        .route("/authorize", post(authorize))
+        .route("/login", post(login))
+        .route("/register", post(register))
 }

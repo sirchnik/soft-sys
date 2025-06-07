@@ -1,27 +1,84 @@
-use crate::auth::jwt::KEYS;
 use crate::error::AuthError;
-use crate::models::{AuthPayload, Claims};
+use crate::models::Claims;
+use crate::{AppState, auth::jwt::KEYS};
+use argon2::password_hash::SaltString;
+use argon2::password_hash::rand_core::OsRng;
+use argon2::{Argon2, PasswordHasher, PasswordVerifier};
 use axum::{
-    Json,
+    Extension, Json,
     http::header,
     response::{IntoResponse, Response},
 };
 use jsonwebtoken::encode;
+use serde::Deserialize;
+use sqlx::Row;
+use std::sync::Arc;
 
-pub async fn protected(claims: Claims) -> Result<String, AuthError> {
-    Ok(format!(
-        "Welcome to the protected area :)\nYour data:\n{claims}",
-    ))
+#[derive(Debug, Deserialize)]
+pub struct RegisterPayload {
+    pub email: String,
+    pub password: String,
 }
 
-pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<impl IntoResponse, AuthError> {
-    if payload.client_id.is_empty() || payload.client_secret.is_empty() {
-        return Err(AuthError::MissingCredentials);
-    }
-    if payload.client_id != "foo" || payload.client_secret != "bar" {
-        return Err(AuthError::WrongCredentials);
-    }
-    let claims = Claims { exp: 2000000000 };
+pub async fn register(
+    state: Extension<Arc<AppState>>,
+    Json(payload): Json<RegisterPayload>,
+) -> Result<impl IntoResponse, AuthError> {
+    let mut rng = OsRng;
+    let salt = SaltString::generate(&mut rng);
+
+    let argon2 = Argon2::default();
+    let hash = argon2
+        .hash_password(payload.password.as_bytes(), &salt)
+        .unwrap();
+
+    sqlx::query("INSERT INTO users (email, password_hash) VALUES ($1, $2)")
+        .bind(&payload.email)
+        .bind(&hash.to_string())
+        .execute(&*state.db)
+        .await
+        .unwrap();
+
+    use axum::http::StatusCode;
+    Ok(StatusCode::CREATED)
+}
+
+#[derive(Debug, Deserialize)]
+pub struct LoginPayload {
+    pub email: String,
+    pub password: String,
+}
+
+pub async fn login(
+    state: Extension<Arc<AppState>>,
+    Json(payload): Json<LoginPayload>,
+) -> Result<impl IntoResponse, AuthError> {
+    // Query user by email
+    let row = sqlx::query("SELECT password_hash FROM users WHERE email = $1")
+        .bind(&payload.email)
+        .fetch_optional(&*state.db)
+        .await
+        .map_err(|_| AuthError::WrongCredentials)?;
+
+    let row = match row {
+        Some(row) => row,
+        None => return Err(AuthError::WrongCredentials),
+    };
+
+    let hash: String = row
+        .try_get("password_hash")
+        .map_err(|_| AuthError::WrongCredentials)?;
+
+    // Verify password
+    let parsed_hash = argon2::PasswordHash::new(&hash).map_err(|_| AuthError::WrongCredentials)?;
+    Argon2::default()
+        .verify_password(payload.password.as_bytes(), &parsed_hash)
+        .map_err(|_| AuthError::WrongCredentials)?;
+
+    let claims = Claims {
+        email: payload.email,
+        exp: 2000000000,
+    };
     let token = encode(&jsonwebtoken::Header::default(), &claims, &KEYS.encoding)
         .map_err(|_| AuthError::TokenCreation)?;
     let cookie = format!("access_token={}; HttpOnly; Path=/; SameSite=Lax", token);
