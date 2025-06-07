@@ -6,11 +6,12 @@ mod routes;
 use routes::create_router;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use axum::Extension;
+use axum::{Extension, http::Method};
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 use std::sync::Arc;
+use tower_http::cors::CorsLayer;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -37,7 +38,23 @@ async fn main() {
 
     let shared_state = Arc::new(AppState { db: Arc::new(pool) });
 
-    let app = create_router().layer(Extension(shared_state));
+    let cors = CorsLayer::new()
+        .allow_origin(["http://localhost:3000".parse().unwrap()])
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PUT,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_credentials(true)
+        .allow_headers([
+            axum::http::header::AUTHORIZATION,
+            axum::http::header::CONTENT_TYPE,
+            axum::http::header::ACCEPT,
+        ]);
+
+    let app = create_router().layer(Extension(shared_state)).layer(cors);
 
     if env::var("JWT_SECRET").is_err() {
         tracing::error!("JWT_SECRET is not set, using default secret for development purposes.");

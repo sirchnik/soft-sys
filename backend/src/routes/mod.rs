@@ -18,7 +18,8 @@ pub fn create_router() -> Router {
             "/api",
             Router::new()
                 .route("/login", post(login))
-                .route("/register", post(register)),
+                .route("/register", post(register))
+                .route("/me", axum::routing::get(crate::routes::auth::me)),
         )
         .nest_service("/dist", get_service(ServeDir::new(dist_path)))
         .nest_service("/static", get_service(ServeDir::new(static_path)))

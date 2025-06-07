@@ -88,3 +88,7 @@ pub async fn login(
         .insert(header::SET_COOKIE, cookie.parse().unwrap());
     Ok(response)
 }
+
+pub async fn me(claims: Claims) -> impl IntoResponse {
+    axum::Json(claims)
+}
