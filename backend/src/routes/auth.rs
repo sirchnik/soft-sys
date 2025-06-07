@@ -1,7 +1,11 @@
 use crate::auth::jwt::KEYS;
 use crate::error::AuthError;
-use crate::models::{AuthBody, AuthPayload, Claims};
-use axum::Json;
+use crate::models::{AuthPayload, Claims};
+use axum::{
+    Json,
+    http::header,
+    response::{IntoResponse, Response},
+};
 use jsonwebtoken::encode;
 
 pub async fn protected(claims: Claims) -> Result<String, AuthError> {
@@ -10,7 +14,7 @@ pub async fn protected(claims: Claims) -> Result<String, AuthError> {
     ))
 }
 
-pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody>, AuthError> {
+pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<impl IntoResponse, AuthError> {
     if payload.client_id.is_empty() || payload.client_secret.is_empty() {
         return Err(AuthError::MissingCredentials);
     }
@@ -20,5 +24,10 @@ pub async fn authorize(Json(payload): Json<AuthPayload>) -> Result<Json<AuthBody
     let claims = Claims { exp: 2000000000 };
     let token = encode(&jsonwebtoken::Header::default(), &claims, &KEYS.encoding)
         .map_err(|_| AuthError::TokenCreation)?;
-    Ok(Json(AuthBody::new(token)))
+    let cookie = format!("access_token={}; HttpOnly; Path=/; SameSite=Lax", token);
+    let mut response = Response::new(axum::body::Body::from("Authorized"));
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.parse().unwrap());
+    Ok(response)
 }

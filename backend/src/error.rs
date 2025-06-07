@@ -1,15 +1,11 @@
 use crate::auth::jwt::KEYS;
 use crate::models::Claims;
 use axum::{
-    http::{request::Parts, StatusCode},
+    Json,
+    http::{StatusCode, request::Parts},
     response::{IntoResponse, Response},
-    Json, RequestPartsExt,
 };
-use axum_extra::{
-    headers::{authorization::Bearer, Authorization},
-    TypedHeader,
-};
-use jsonwebtoken::{decode, Validation};
+use jsonwebtoken::{Validation, decode};
 use serde_json::json;
 
 #[derive(Debug)]
@@ -23,11 +19,24 @@ pub enum AuthError {
 impl axum::extract::FromRequestParts<()> for Claims {
     type Rejection = AuthError;
     async fn from_request_parts(parts: &mut Parts, _state: &()) -> Result<Self, Self::Rejection> {
-        let TypedHeader(Authorization(bearer)) = parts
-            .extract::<TypedHeader<Authorization<Bearer>>>()
-            .await
-            .map_err(|_| AuthError::InvalidToken)?;
-        let token_data = decode::<Claims>(bearer.token(), &KEYS.decoding, &Validation::default())
+        // Extract JWT from cookie instead of Authorization header
+        let cookies = parts
+            .headers
+            .get(axum::http::header::COOKIE)
+            .ok_or(AuthError::MissingCredentials)?;
+        let cookie_str = cookies.to_str().map_err(|_| AuthError::InvalidToken)?;
+        let jwt = cookie_str
+            .split(';')
+            .find_map(|c| {
+                let c = c.trim();
+                if c.starts_with("access_token=") {
+                    Some(&c[13..])
+                } else {
+                    None
+                }
+            })
+            .ok_or(AuthError::MissingCredentials)?;
+        let token_data = decode::<Claims>(jwt, &KEYS.decoding, &Validation::default())
             .map_err(|_| AuthError::InvalidToken)?;
         Ok(token_data.claims)
     }
