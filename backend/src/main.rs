@@ -9,6 +9,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use axum::Extension;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
+use std::env;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -26,11 +27,13 @@ async fn main() {
         .with(tracing_subscriber::fmt::layer())
         .init();
     let pool = SqlitePoolOptions::new()
-        .connect("sqlite::memory:")
+        .connect(
+            env::var("DATABASE_URL")
+                .unwrap_or("sqlite://drawer.db".to_string())
+                .as_str(),
+        )
         .await
         .unwrap();
-
-    sqlx::migrate!().run(&pool).await.unwrap();
 
     let shared_state = Arc::new(AppState { db: Arc::new(pool) });
 
