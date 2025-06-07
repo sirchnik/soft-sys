@@ -6,6 +6,16 @@ mod routes;
 use routes::create_router;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use axum::Extension;
+use sqlx::sqlite::SqlitePoolOptions;
+use sqlx::SqlitePool;
+use std::sync::Arc;
+
+#[derive(Clone)]
+pub struct AppState {
+    pub db: Arc<SqlitePool>,
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::registry()
@@ -15,12 +25,19 @@ async fn main() {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+    let pool = SqlitePoolOptions::new()
+        .connect("sqlite::memory:")
+        .await
+        .unwrap();
 
-    let app = create_router();
+    let shared_state = AppState { db: Arc::new(pool) };
+
+    let app = create_router().layer(Extension(shared_state));
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
         .await
         .unwrap();
+
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();
 }
