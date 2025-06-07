@@ -25,66 +25,103 @@ if (app === null) {
   init();
 }
 
-function init() {
+let user: { email?: string } | null = null;
+
+async function fetchUser() {
+  try {
+    const res = await fetch("http://localhost:8000/api/me", {
+      credentials: "include",
+    });
+    if (res.ok) {
+      user = await res.json();
+    } else {
+      user = null;
+    }
+  } catch {
+    user = null;
+  }
+}
+
+function renderNavBar(current: string) {
+  // Only show nav items the user can access
+  const isAuth = !!user;
+  const navItems = [
+    { name: "Home", route: "", show: isAuth },
+    { name: "Canvas", route: "canvas", show: isAuth },
+    { name: "Login", route: "login", show: !isAuth },
+    { name: "Register", route: "register", show: !isAuth },
+  ];
+  const navList = document.getElementById("navbar-list");
+  if (navList) {
+    navList.innerHTML = navItems
+      .filter((item) => item.show)
+      .map(
+        (item) =>
+          `<li><a href="${item.route}" class="nav-link${
+            current === item.route ? " active" : ""
+          }"
+            data-route="${item.route}">${item.name}</a></li>`
+      )
+      .join("");
+  }
+  // User info and logout
+  const userInfo = document.getElementById("navbar-user-info");
+  const logoutBtn = document.getElementById("logout-btn");
+  if (userInfo) userInfo.textContent = isAuth ? user.email : "Gast";
+  if (logoutBtn) logoutBtn.style.display = isAuth ? "inline-block" : "none";
+}
+
+function setupNavEvents() {
   document.addEventListener("click", (event) => {
-    try {
-      // @ts-ignore
-      const link = event.target.closest("a.nav-link");
-      if (link && link.href.startsWith(window.location.origin)) {
-        event.preventDefault();
-        const path = new URL(link.href).pathname.replace("/", "");
-        navigateTo(path);
-      }
-    } catch {}
+    const link = (event.target as HTMLElement).closest(
+      "a.nav-link[data-route]"
+    );
+    if (link) {
+      event.preventDefault();
+      const path = link.getAttribute("data-route") || "";
+      navigateTo(path);
+    }
   });
+  const logoutBtn = document.getElementById("logout-btn");
+  if (logoutBtn) {
+    logoutBtn.onclick = async () => {
+      await fetch("http://localhost:8000/api/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      user = null;
+      navigateTo("login");
+    };
+  }
+}
+
+async function init() {
+  await fetchUser();
+  setupNavEvents();
   const currentRoute = window.location.pathname.replace("/", "");
-  renderPage(currentRoute);
+  await renderPage(currentRoute);
   window.addEventListener("popstate", (event) => {
     renderPage(event.state?.path || "");
   });
 }
 
-function renderNavBar(current: string) {
-  // Simple nav bar with highlighting for the current page
-  const navItems = [
-    { name: "Home", route: "", show: true },
-    { name: "Canvas", route: "canvas", show: true },
-    { name: "Login", route: "login", show: true },
-    { name: "Register", route: "register", show: true },
-  ];
-  return `
-    <nav class="navbar">
-      <ul class="navbar-list">
-        ${navItems
-          .map(
-            (item) =>
-              `<li><a href="${item.route}" class="nav-link${
-                current === item.route ? " active" : ""
-              }">${item.name}</a></li>`
-          )
-          .join("")}
-      </ul>
-    </nav>
-  `;
-}
-
 async function renderPage(route: string) {
   try {
     afterLeave();
-    // Don't show nav bar on 404
-    if (route !== "404") {
-      app.innerHTML = renderNavBar(route);
-    }
-    afterLeave = routes[route]?.() || routes.index();
+    renderNavBar(route);
+    const pageContent = document.querySelector(".page-content");
+    if (pageContent) pageContent.innerHTML = "";
+    afterLeave = (await (routes[route] || routes.index)()) || (() => {});
   } catch (error) {
     console.error(error);
-    app.innerHTML = "<h1>Fehler beim Laden der Seite</h1>";
+    const pageContent = document.querySelector(".page-content");
+    if (pageContent)
+      pageContent.innerHTML = "<h1>Fehler beim Laden der Seite</h1>";
   }
 }
 
 function canvas() {
   document.title = "Canvas";
-  // Only replace the content area, not the nav bar
   const content = `
       <p>
         Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
@@ -101,55 +138,35 @@ function canvas() {
         <button id="loadEventsButton">Load Events</button>
       </div>
     `;
-  app
-    .querySelector(".navbar")
-    .insertAdjacentHTML(
-      "afterend",
-      `<div class='page-content'>${content}</div>`
-    );
+  const pageContent = document.querySelector(".page-content");
+  if (pageContent) pageContent.innerHTML = content;
   return initDrawer();
-}
-
-function index() {
-  const content = `
-      <h1>Willkommen! 🎉</h1>
-      <a href="canvas" class="nav-link start-button">Starte die Magie ✨</a>
-    `;
-  app
-    .querySelector(".navbar")
-    .insertAdjacentHTML(
-      "afterend",
-      `<div class='page-content'>${content}</div>`
-    );
-  return () => {};
 }
 
 function notFound() {
   document.title = "404 - Seite nicht gefunden";
-  app.innerHTML = `
+  const pageContent = document.querySelector(".page-content");
+  if (pageContent)
+    pageContent.innerHTML = `
       <h1>404 - Seite nicht gefunden</h1>
       <p>Die angeforderte Seite existiert nicht.</p>
-      <a href="/" class="nav-link">Zurück zur Startseite</a>
+      <a href="/" class="nav-link" data-route="">Zurück zur Startseite</a>
     `;
   return () => {};
 }
 
 function navigateTo(route: string) {
-  history.pushState({ path: route }, "", route); // Update URL without reloading
+  history.pushState({ path: route }, "", route);
   renderPage(route);
 }
 
 function home() {
-  // Home page: check JWT, if invalid, redirect to login
   document.title = "Home";
-  checkAuth().then((isAuth) => {
-    if (!isAuth) {
-      navigateTo("login");
-      return;
-    }
-    // If authenticated, show canvas
-    canvas();
-  });
+  if (!user) {
+    navigateTo("login");
+    return () => {};
+  }
+  canvas();
   return () => {};
 }
 
@@ -162,15 +179,11 @@ function login() {
       <label>Passwort: <input type="password" name="password" required></label><br>
       <button type="submit">Login</button>
     </form>
-    <p>Noch keinen Account? <a href="register" class="nav-link">Registrieren</a></p>
+    <p>Noch keinen Account? <a href="register" class="nav-link" data-route="register">Registrieren</a></p>
     <div id="loginError" style="color:red;"></div>
   `;
-  app
-    .querySelector(".navbar")
-    .insertAdjacentHTML(
-      "afterend",
-      `<div class='page-content'>${content}</div>`
-    );
+  const pageContent = document.querySelector(".page-content");
+  if (pageContent) pageContent.innerHTML = content;
   const form = document.getElementById("loginForm") as HTMLFormElement | null;
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -185,6 +198,7 @@ function login() {
       credentials: "include",
     });
     if (res.ok) {
+      await fetchUser();
       navigateTo("");
     } else {
       document.getElementById("loginError").textContent =
@@ -203,15 +217,11 @@ function register() {
       <label>Passwort: <input type="password" name="password" required></label><br>
       <button type="submit">Registrieren</button>
     </form>
-    <p>Schon einen Account? <a href="login" class="nav-link">Login</a></p>
+    <p>Schon einen Account? <a href="login" class="nav-link" data-route="login">Login</a></p>
     <div id="registerError" style="color:red;"></div>
   `;
-  app
-    .querySelector(".navbar")
-    .insertAdjacentHTML(
-      "afterend",
-      `<div class='page-content'>${content}</div>`
-    );
+  const pageContent = document.querySelector(".page-content");
+  if (pageContent) pageContent.innerHTML = content;
   const form = document.getElementById(
     "registerForm"
   ) as HTMLFormElement | null;

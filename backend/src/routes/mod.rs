@@ -1,6 +1,6 @@
 mod auth;
 
-use crate::routes::auth::{login, register};
+use crate::routes::auth::{login, logout, register};
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
@@ -19,7 +19,8 @@ pub fn create_router() -> Router {
             Router::new()
                 .route("/login", post(login))
                 .route("/register", post(register))
-                .route("/me", axum::routing::get(crate::routes::auth::me)),
+                .route("/me", axum::routing::get(crate::routes::auth::me))
+                .route("/logout", post(logout)),
         )
         .nest_service("/dist", get_service(ServeDir::new(dist_path)))
         .nest_service("/static", get_service(ServeDir::new(static_path)))

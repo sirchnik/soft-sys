@@ -12,6 +12,19 @@
     <!-- Required by context.js -->
     <div id="teleport"></div>
     <div id="shadow-box"></div>
-    <div id="app"></div>
+    <nav class="navbar">
+      <ul class="navbar-list" id="navbar-list">
+        <!-- Nav items will be rendered by JS -->
+      </ul>
+      <div class="navbar-user">
+        <span id="navbar-user-info">Gast</span>
+        <button id="logout-btn" style="display: none; margin-left: 1em">
+          Logout
+        </button>
+      </div>
+    </nav>
+    <div id="app">
+      <div class="page-content"></div>
+    </div>
   </body>
 </html>

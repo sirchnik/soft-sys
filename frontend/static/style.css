@@ -1,27 +1,38 @@
 .tools {
-  width: 100px;
+  width: 120px;
   float: left;
-  padding: 5px;
+  padding: 8px;
+  background: #f3f6fa;
+  border-radius: 8px;
+  margin-right: 1.5em;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .tools li {
-  padding: 5px;
+  padding: 7px 10px;
   list-style: none;
+  border-radius: 5px;
+  margin-bottom: 4px;
+  transition: background 0.15s, color 0.15s;
 }
 
 .tools li:hover {
-  color: cornflowerblue;
+  color: #4f8cff;
+  background: #e3edff;
   cursor: pointer;
 }
 
 .tools li.marked {
-  background-color: cornflowerblue;
-  color: white;
+  background-color: #4f8cff;
+  color: #fff;
 }
 
 #drawArea {
-  border: 1px solid #000000;
-  background-color: lightgrey;
+  border: 2px solid #4f8cff;
+  background-color: #f3f6fa;
+  border-radius: 8px;
+  margin-left: 1.5em;
+  box-shadow: 0 2px 8px rgba(79, 140, 255, 0.07);
 }
 
 #events {
@@ -29,13 +40,17 @@
 }
 
 .navbar {
-  background: #2d3e50;
-  padding: 0.5em 0;
-  margin-bottom: 1em;
+  background: #23272f;
+  padding: 0.7em 0;
+  margin-bottom: 1.5em;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 .navbar-list {
   display: flex;
-  gap: 1.5em;
+  gap: 2em;
   list-style: none;
   margin: 0;
   padding: 0 2em;
@@ -44,23 +59,115 @@
   display: inline;
 }
 .navbar-list .nav-link {
-  color: #fff;
+  color: #f3f6fa;
   text-decoration: none;
   font-weight: 500;
-  padding: 0.3em 0.7em;
-  border-radius: 4px;
-  transition: background 0.2s;
+  padding: 0.4em 1.1em;
+  border-radius: 6px;
+  transition: background 0.18s, color 0.18s;
+  font-size: 1.08em;
+  letter-spacing: 0.01em;
 }
 .navbar-list .nav-link.active,
 .navbar-list .nav-link:hover {
-  background: cornflowerblue;
+  background: #4f8cff;
   color: #fff;
+  box-shadow: 0 2px 8px rgba(79, 140, 255, 0.1);
+}
+.navbar-user {
+  color: #f3f6fa;
+  font-size: 1em;
+  margin-right: 2em;
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+}
+#logout-btn {
+  background: #ff4d4f;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.35em 1.1em;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s;
+  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.1);
+}
+#logout-btn:hover {
+  background: #d9363e;
 }
 .page-content {
-  max-width: 900px;
   margin: 0 auto;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  padding: 2em 2em 1em 2em;
+  background: #f8fafc;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
+  padding: 2.5em 2.5em 1.5em 2.5em;
+}
+form input[type="email"],
+form input[type="password"] {
+  padding: 0.5em 0.9em;
+  border: 1px solid #cfd8dc;
+  border-radius: 5px;
+  font-size: 1em;
+  margin-bottom: 0.7em;
+  background: #f3f6fa;
+  color: #23272f;
+  transition: border 0.18s;
+}
+form input[type="email"]:focus,
+form input[type="password"]:focus {
+  border: 1.5px solid #4f8cff;
+  outline: none;
+}
+form button[type="submit"] {
+  background: #4f8cff;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5em 1.5em;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  margin-top: 0.7em;
+  transition: background 0.18s, box-shadow 0.18s;
+  box-shadow: 0 2px 8px rgba(79, 140, 255, 0.1);
+}
+form button[type="submit"]:hover {
+  background: #2563eb;
+}
+.event-stream-container {
+  margin-top: 2em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7em;
+}
+#eventStream {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid #cfd8dc;
+  background: #f8fafc;
+  color: #23272f;
+  font-size: 1em;
+  padding: 0.7em;
+  resize: vertical;
+  min-height: 120px;
+}
+#loadEventsButton {
+  background: #22c55e;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.5em 1.5em;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.1);
+}
+#loadEventsButton:hover {
+  background: #15803d;
+}
+#events {
+  display: none;
 }

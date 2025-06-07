@@ -92,3 +92,12 @@ pub async fn login(
 pub async fn me(claims: Claims) -> impl IntoResponse {
     axum::Json(claims)
 }
+
+pub async fn logout() -> impl IntoResponse {
+    let cookie = "access_token=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
+    let mut response = Response::new(axum::body::Body::from("Logged out"));
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.parse().unwrap());
+    response
+}
