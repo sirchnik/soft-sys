@@ -1,6 +1,6 @@
-import { CanvasTool } from "./drawer.js";
-import { EventBus, EventTypes } from "./events.js";
-import { Shape, Point2D, Line, Circle, Rectangle, Triangle } from "./shapes.js";
+import { CanvasTool } from "./drawer";
+import { EventBus, EventTypes } from "./events";
+import { Shape, Point2D, Line, Circle, Rectangle, Triangle } from "./shapes";
 
 export abstract class AbstractFactory<T extends Shape> implements CanvasTool {
   label?: string;

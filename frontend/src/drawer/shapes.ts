@@ -1,5 +1,5 @@
-import { DrawOptions } from "./drawer.js";
-import { AddShapePayload, Point2D as EventPoint2D } from "./events.js";
+import { DrawOptions } from "./drawer";
+import { AddShapePayload, Point2D as EventPoint2D } from "./events";
 
 const MARKED_WIDTH = 4;
 export class Point2D implements EventPoint2D {

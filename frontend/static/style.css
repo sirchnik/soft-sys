@@ -1,3 +1,10 @@
+body, html {
+  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Liberation Sans', sans-serif;
+  font-size: 1.05em;
+  background: #f8fafc;
+  color: #23272f;
+}
+
 .tools {
   width: 120px;
   float: left;

@@ -3,15 +3,15 @@ import {
   LineFactory,
   RectangleFactory,
   TriangleFactory,
-} from "./shape-factories.js";
-import { Menu, MenuEntry, SeparatorEntry, RadioOption } from "./context.js";
+} from "./shape-factories";
+import { Menu, MenuEntry, SeparatorEntry, RadioOption } from "../context";
 import {
   EventBus,
   EventTypes,
   DomainEvent,
   AddShapePayload,
   Point2D as EventPoint2D,
-} from "./events.js";
+} from "./events";
 import {
   AbstractShape,
   Circle,
@@ -20,7 +20,7 @@ import {
   Rectangle,
   Shape,
   Triangle,
-} from "./shapes.js";
+} from "./shapes";
 
 export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
