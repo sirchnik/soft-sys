@@ -2,3 +2,4 @@ target/
 drawer.db
 node_modules
 dist
+/backend/frontend

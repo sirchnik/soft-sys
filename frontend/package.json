@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "node live-server.cjs & esbuild --watch index.ts --bundle --outfile=dist/index.js --sourcemap",
-    "build": "esbuild index.ts --bundle --outfile=dist/index.js --minify",
+    "build": "esbuild index.ts --bundle --outfile=dist/index.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],

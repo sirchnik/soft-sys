@@ -39,9 +39,13 @@ async fn main() {
 
     let app = create_router().layer(Extension(shared_state));
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:3000")
-        .await
-        .unwrap();
+    if env::var("JWT_SECRET").is_err() {
+        tracing::error!("JWT_SECRET is not set, using default secret for development purposes.");
+        std::process::exit(1);
+    }
+
+    let bind_to = env::var("BIND_TO").unwrap_or("0.0.0.0:8000".to_string());
+    let listener = tokio::net::TcpListener::bind(bind_to).await.unwrap();
 
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
     axum::serve(listener, app).await.unwrap();

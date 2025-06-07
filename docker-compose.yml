@@ -1,0 +1,9 @@
+services:
+  drawer:
+    build: .
+    restart: always
+    environment:
+      BIND_TO: "0.0.0.0:8000"
+      JWT_SECRET: "your_jwt_secret_here"
+    ports:
+      - 8000:8000
