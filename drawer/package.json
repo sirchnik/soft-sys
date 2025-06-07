@@ -1,0 +1,20 @@
+{
+  "name": "drawer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node live-server.cjs & esbuild --watch index.ts --bundle --outfile=dist/index.js --sourcemap",
+    "build": "esbuild index.ts --bundle --outfile=dist/index.js --minify",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.11.0",
+  "devDependencies": {
+    "esbuild": "^0.25.5",
+    "live-server": "^1.2.2",
+    "typescript": "^5.8.3"
+  }
+}

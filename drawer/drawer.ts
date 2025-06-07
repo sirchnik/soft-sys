@@ -581,7 +581,7 @@ class Canvas implements ShapeManager, CanvasTool {
   }
 }
 
-function init() {
+export function init() {
   const canvasDomElm = document.getElementById("drawArea") as HTMLCanvasElement;
   const menu = document.getElementsByClassName("tools")[0];
   const eventStreamTextArea = document.getElementById(
@@ -759,17 +759,5 @@ function init() {
   });
 
   canvas.draw();
-}
-
-let canvasEle = document.getElementById("drawArea");
-if (canvasEle === null) {
-  document.addEventListener("DOMContentLoaded", () => {
-    canvasEle = document.getElementById("drawArea");
-    if (canvasEle === null) {
-      throw "App could not be loaded!";
-    }
-    init();
-  });
-} else {
-  init();
+  return () => {};
 }
