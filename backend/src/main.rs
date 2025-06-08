@@ -20,6 +20,11 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+    if env::var("JWT_SECRET").is_err() {
+        tracing::error!("JWT_SECRET is not set, using default secret for development purposes.");
+        std::process::exit(1);
+    }
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -39,7 +44,9 @@ async fn main() {
     let shared_state = Arc::new(AppState { db: Arc::new(pool) });
 
     let cors = CorsLayer::new()
-        .allow_origin(["http://localhost:3000".parse().unwrap()])
+        .allow_origin(
+            ["http://localhost:3000", "http://localhost:3000"].map(|s| s.parse().unwrap()),
+        )
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -55,11 +62,6 @@ async fn main() {
         ]);
 
     let app = create_router().layer(Extension(shared_state)).layer(cors);
-
-    if env::var("JWT_SECRET").is_err() {
-        tracing::error!("JWT_SECRET is not set, using default secret for development purposes.");
-        std::process::exit(1);
-    }
 
     let bind_to = env::var("BIND_TO").unwrap_or("0.0.0.0:8000".to_string());
     let listener = tokio::net::TcpListener::bind(bind_to).await.unwrap();

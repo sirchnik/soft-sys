@@ -13,8 +13,6 @@ export function setPageContent(el: HTMLElement) {
 export const routes: Record<string, () => (() => void) | Promise<() => void>> =
   {
     "": home,
-    index: home,
-    home: home,
     login,
     register,
     404: notFound,
@@ -34,8 +32,7 @@ export async function renderPage(route: string) {
 }
 
 export function navigateTo(route: string) {
-  if (!route) route = "home";
-  history.pushState({ path: route }, "", route);
+  history.replaceState({ path: route }, "", route);
   renderPage(route);
 }
 
@@ -63,7 +60,7 @@ function home() {
 function login() {
   document.title = "Login";
   if (getUser()) {
-    navigateTo("home");
+    navigateTo("");
     return () => {};
   }
   if (!pageContent) return () => {};
@@ -94,7 +91,7 @@ function login() {
       });
       if (res.ok) {
         await fetchUser();
-        navigateTo("home");
+        navigateTo("");
       } else {
         const errMsg = await res.text();
         document.getElementById("loginError").textContent =

@@ -6,7 +6,7 @@ export function renderNavBar(current: string) {
   const user = getUser();
   const isAuth = !!user;
   const navItems = [
-    { name: "Home", route: "home", show: isAuth },
+    { name: "Home", route: "", show: isAuth },
     { name: "Login", route: "login", show: !isAuth },
     { name: "Register", route: "register", show: !isAuth },
   ];

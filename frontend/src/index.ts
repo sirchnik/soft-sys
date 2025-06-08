@@ -1,6 +1,6 @@
-import { fetchUser } from "./src/auth";
-import { setupNavEvents } from "./src/navbar";
-import { renderPage, setPageContent } from "./src/router";
+import { fetchUser } from "./auth";
+import { setupNavEvents } from "./navbar";
+import { renderPage, setPageContent } from "./router";
 
 let app = document.getElementById("app");
 let pageContent = document.querySelector(".page-content") as HTMLElement | null;
