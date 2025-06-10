@@ -7,6 +7,7 @@ use routes::create_router;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use axum::{Extension, http::Method};
+use dotenv;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
@@ -20,6 +21,8 @@ pub struct AppState {
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().unwrap();
+
     if env::var("JWT_SECRET").is_err() {
         tracing::error!("JWT_SECRET is not set, using default secret for development purposes.");
         std::process::exit(1);

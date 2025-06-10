@@ -3,8 +3,10 @@ use std::fmt::Display;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
+    pub id: String,
     pub email: String,
     pub exp: usize,
+    pub display_name: String,
 }
 
 impl Display for Claims {

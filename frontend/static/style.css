@@ -1,10 +1,14 @@
-body, html {
-  font-family: 'Inter', 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, 'Liberation Sans', sans-serif;
+/* Simplified and grouped CSS for clarity and maintainability */
+body,
+html {
+  font-family: "Inter", "Segoe UI", "Roboto", "Helvetica Neue", Arial,
+    "Liberation Sans", sans-serif;
   font-size: 1.05em;
   background: #f8fafc;
   color: #23272f;
 }
 
+/* Sidebar tools */
 .tools {
   width: 120px;
   float: left;
@@ -14,7 +18,6 @@ body, html {
   margin-right: 1.5em;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-
 .tools li {
   padding: 7px 10px;
   list-style: none;
@@ -22,18 +25,17 @@ body, html {
   margin-bottom: 4px;
   transition: background 0.15s, color 0.15s;
 }
-
 .tools li:hover {
   color: #4f8cff;
   background: #e3edff;
   cursor: pointer;
 }
-
 .tools li.marked {
   background-color: #4f8cff;
   color: #fff;
 }
 
+/* Canvas area */
 #drawArea {
   border: 2px solid #4f8cff;
   background-color: #f3f6fa;
@@ -42,10 +44,7 @@ body, html {
   box-shadow: 0 2px 8px rgba(79, 140, 255, 0.07);
 }
 
-#events {
-  display: none;
-}
-
+/* Navbar */
 .navbar {
   background: #23272f;
   padding: 0.7em 0;
@@ -104,6 +103,8 @@ body, html {
 #logout-btn:hover {
   background: #d9363e;
 }
+
+/* Page content */
 .page-content {
   margin: 0 auto;
   background: #f8fafc;
@@ -111,8 +112,9 @@ body, html {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
   padding: 2.5em 2.5em 1.5em 2.5em;
 }
-form input[type="email"],
-form input[type="password"] {
+
+/* Forms */
+form input {
   padding: 0.5em 0.9em;
   border: 1px solid #cfd8dc;
   border-radius: 5px;
@@ -122,8 +124,7 @@ form input[type="password"] {
   color: #23272f;
   transition: border 0.18s;
 }
-form input[type="email"]:focus,
-form input[type="password"]:focus {
+form input:focus {
   border: 1.5px solid #4f8cff;
   outline: none;
 }
@@ -143,6 +144,24 @@ form button[type="submit"] {
 form button[type="submit"]:hover {
   background: #2563eb;
 }
+
+/* Form rows */
+.form-row {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.7em;
+}
+.form-label {
+  flex: 0 0 140px;
+  font-weight: 500;
+  margin-right: 1em;
+}
+.form-input {
+  flex: 1 1 auto;
+  max-width: 260px;
+}
+
+/* Event stream */
 .event-stream-container {
   margin-top: 2em;
   display: flex;
@@ -174,7 +193,4 @@ form button[type="submit"]:hover {
 }
 #loadEventsButton:hover {
   background: #15803d;
-}
-#events {
-  display: none;
 }

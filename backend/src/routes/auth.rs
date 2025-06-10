@@ -18,6 +18,7 @@ use std::sync::Arc;
 pub struct RegisterPayload {
     pub email: String,
     pub password: String,
+    pub display_name: String,
 }
 
 pub async fn register(
@@ -32,8 +33,9 @@ pub async fn register(
         .hash_password(payload.password.as_bytes(), &salt)
         .unwrap();
 
-    sqlx::query("INSERT INTO users (email, password_hash) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO users (email, display_name, password_hash) VALUES ($1, $2, $3)")
         .bind(&payload.email)
+        .bind(&payload.display_name)
         .bind(&hash.to_string())
         .execute(&*state.db)
         .await
@@ -54,7 +56,7 @@ pub async fn login(
     Json(payload): Json<LoginPayload>,
 ) -> Result<impl IntoResponse, AuthError> {
     // Query user by email
-    let row = sqlx::query("SELECT password_hash FROM users WHERE email = $1")
+    let row = sqlx::query("SELECT password_hash, display_name,id FROM users WHERE email = $1")
         .bind(&payload.email)
         .fetch_optional(&*state.db)
         .await
@@ -68,6 +70,8 @@ pub async fn login(
     let hash: String = row
         .try_get("password_hash")
         .map_err(|_| AuthError::WrongCredentials)?;
+    let display_name: String = row.try_get("display_name").unwrap();
+    let user_id: String = row.try_get("id").unwrap();
 
     // Verify password
     let parsed_hash = argon2::PasswordHash::new(&hash).map_err(|_| AuthError::WrongCredentials)?;
@@ -76,13 +80,17 @@ pub async fn login(
         .map_err(|_| AuthError::WrongCredentials)?;
 
     let claims = Claims {
-        email: payload.email,
+        email: payload.email.clone(),
         exp: 2000000000,
+        display_name: display_name.clone(),
+        id: user_id.clone(),
     };
     let token = encode(&jsonwebtoken::Header::default(), &claims, &KEYS.encoding)
         .map_err(|_| AuthError::TokenCreation)?;
     let cookie = format!("access_token={}; HttpOnly; Path=/; SameSite=Lax", token);
-    let mut response = Response::new(axum::body::Body::from("Authorized"));
+    let mut response = Response::new(axum::body::Body::from(
+        serde_json::json!({"email": payload.email, "display_name": display_name}).to_string(),
+    ));
     response
         .headers_mut()
         .insert(header::SET_COOKIE, cookie.parse().unwrap());

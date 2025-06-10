@@ -67,8 +67,14 @@ function login() {
   const content = `
     <h1>Login</h1>
     <form id="loginForm">
-      <label>Email: <input type="email" name="email" required></label><br>
-      <label>Passwort: <input type="password" name="password" required></label><br>
+      <div class="form-row">
+        <label class="form-label">Email:</label>
+        <input class="form-input" type="email" name="email" required>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Passwort:</label>
+        <input class="form-input" type="password" name="password" required>
+      </div>
       <button type="submit">Login</button>
     </form>
     <p>Noch keinen Account? <a href="register" class="nav-link" data-route="register">Registrieren</a></p>
@@ -112,8 +118,18 @@ function register() {
   const content = `
     <h1>Registrieren</h1>
     <form id="registerForm">
-      <label>Email: <input type="email" name="email" required></label><br>
-      <label>Passwort: <input type="password" name="password" required></label><br>
+      <div class="form-row">
+        <label class="form-label">Email:</label>
+        <input class="form-input" type="email" name="email" required>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Display Name:</label>
+        <input class="form-input" type="text" name="display_name" required>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Passwort:</label>
+        <input class="form-input" type="password" name="password" required>
+      </div>
       <button type="submit">Registrieren</button>
     </form>
     <p>Schon einen Account? <a href="login" class="nav-link" data-route="login">Login</a></p>
@@ -129,11 +145,12 @@ function register() {
     const data = new FormData(form);
     const email = data.get("email");
     const password = data.get("password");
+    const display_name = data.get("display_name");
     try {
       const res = await fetch("http://localhost:8000/api/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, display_name }),
         credentials: "include",
       });
       if (res.ok) {
