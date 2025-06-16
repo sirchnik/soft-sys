@@ -581,70 +581,60 @@ class Canvas implements ShapeManager, CanvasTool {
   }
 }
 
-export function init() {
-  const canvasDomElm = document.getElementById("drawArea") as HTMLCanvasElement;
-  const menu = document.getElementsByClassName("tools")[0];
-  const eventStreamTextArea = document.getElementById(
-    "eventStream"
-  ) as HTMLTextAreaElement;
-  const loadEventsButton = document.getElementById(
-    "loadEventsButton"
-  ) as HTMLButtonElement;
+function initEventLog(
+  loadEventsButton: HTMLButtonElement,
+  eventStreamTextArea: HTMLTextAreaElement,
+  eventBus: EventBus,
+  canvas: Canvas,
+  sm: ShapeManager
+) {
+  loadEventsButton.addEventListener("click", () => {
+    const eventLines = eventStreamTextArea.value.trim().split("\n");
 
-  if (!eventStreamTextArea || !loadEventsButton) {
-    console.error("Event stream textarea or load button not found!");
-    return;
-  }
+    eventBus.dispatch({ type: EventTypes.CLEAR_CANVAS_EVENT, payload: {} });
 
-  const eventBus = new EventBus();
+    const originalAllSubscribers = eventBus["allEventsSubscribers"];
+    eventBus["allEventsSubscribers"] = [];
 
-  let canvas: Canvas;
-  const sm: ShapeManager = {
-    addShape(s, rd, temp) {
-      return canvas.addShape(s, rd, temp);
-    },
-    removeShape(s, rd, temp) {
-      return canvas.removeShape(s, rd, temp);
-    },
-    removeShapeWithId(id, rd, temp) {
-      return canvas.removeShapeWithId(id, rd, temp);
-    },
-    getShapes() {
-      return canvas.getShapes();
-    },
-    redraw() {
-      return canvas.redraw();
-    },
-    moveToFront(shape) {
-      canvas.moveToFront(shape);
-    },
-    moveToBack(shape) {
-      canvas.moveToBack(shape);
-    },
-    getShapeById(id) {
-      return canvas.getShapeById(id);
-    },
-    recreateShape(payload) {
-      return canvas.recreateShape(payload);
-    },
-    clearAllShapes() {
-      canvas.clearAllShapes();
-    },
-  };
-  const shapesSelector: CanvasTool[] = [
-    new LineFactory(eventBus),
-    new CircleFactory(eventBus),
-    new RectangleFactory(eventBus),
-    new TriangleFactory(eventBus),
-  ];
-  const toolArea = new ToolArea(
-    shapesSelector,
-    menu,
-    new SelectionManager(sm, eventBus)
-  );
-  canvas = new Canvas(canvasDomElm, toolArea);
+    eventLines.forEach((line) => {
+      if (line.trim() === "") return;
+      try {
+        const event = JSON.parse(line) as DomainEvent;
+        eventBus.dispatch(event);
+      } catch (e) {
+        console.error("Error parsing or replaying event:", line, e);
+      }
+    });
 
-  // --- Event Handlers ---
+    eventBus["allEventsSubscribers"] = originalAllSubscribers;
+
+    eventStreamTextArea.value = "";
+    const replayedEvents: DomainEvent[] = [];
+    canvas["shapes"].forEach((s) => {
+      replayedEvents.push({
+        type: EventTypes.ADD_SHAPE_EVENT,
+        payload: s.toSerializable(),
+        timestamp: Date.now(),
+      });
+    });
+    replayedEvents.sort((a, b) => a.timestamp - b.timestamp);
+    replayedEvents.forEach((event) => {
+      if ("temporary" in event.payload && event.payload?.temporary) {
+        return;
+      }
+      eventStreamTextArea.value += JSON.stringify(event) + "\n";
+    });
+    eventStreamTextArea.scrollTop = eventStreamTextArea.scrollHeight;
+
+    sm.redraw();
+  });
+}
+
+function initEventBus(
+  eventBus: EventBus,
+  eventStreamTextArea: HTMLTextAreaElement,
+  sm: ShapeManager
+) {
   eventBus.subscribeToAll((event: DomainEvent) => {
     if (
       ("temporary" in event.payload && event.payload.temporary) ||
@@ -716,48 +706,93 @@ export function init() {
   eventBus.subscribe(EventTypes.CLEAR_CANVAS_EVENT, (_event) => {
     sm.clearAllShapes();
   });
+}
 
-  loadEventsButton.addEventListener("click", () => {
-    const eventLines = eventStreamTextArea.value.trim().split("\n");
+export function init(pageContent: HTMLElement, canvasId: string) {
+  const content = `
+      <p>
+        Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
+        ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
+        Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
+        Maustaste die Form bestimmen, und dann anschließend die Maustaste
+        loslassen.
+      </p>
+      <p>Mit shift kann man die Shapes verschieben.</p>
+      <ul class="tools"></ul>
+      <canvas id="drawArea" width="1024" height="500"></canvas>
+      <div class="event-stream-container">
+        <textarea id="eventStream" rows="10" cols="130"></textarea>
+        <button id="loadEventsButton">Load Events</button>
+      </div>
+    `;
+  pageContent.innerHTML = content;
 
-    eventBus.dispatch({ type: EventTypes.CLEAR_CANVAS_EVENT, payload: {} });
+  const canvasDomElm = document.getElementById("drawArea") as HTMLCanvasElement;
+  const menu = document.getElementsByClassName("tools")[0];
+  const eventStreamTextArea = document.getElementById(
+    "eventStream"
+  ) as HTMLTextAreaElement;
+  const loadEventsButton = document.getElementById(
+    "loadEventsButton"
+  ) as HTMLButtonElement;
 
-    const originalAllSubscribers = eventBus["allEventsSubscribers"];
-    eventBus["allEventsSubscribers"] = [];
+  if (!eventStreamTextArea || !loadEventsButton) {
+    console.error("Event stream textarea or load button not found!");
+    return;
+  }
 
-    eventLines.forEach((line) => {
-      if (line.trim() === "") return;
-      try {
-        const event = JSON.parse(line) as DomainEvent;
-        eventBus.dispatch(event);
-      } catch (e) {
-        console.error("Error parsing or replaying event:", line, e);
-      }
-    });
+  const eventBus = new EventBus();
 
-    eventBus["allEventsSubscribers"] = originalAllSubscribers;
+  let canvas: Canvas;
+  const sm: ShapeManager = {
+    addShape(s, rd, temp) {
+      return canvas.addShape(s, rd, temp);
+    },
+    removeShape(s, rd, temp) {
+      return canvas.removeShape(s, rd, temp);
+    },
+    removeShapeWithId(id, rd, temp) {
+      return canvas.removeShapeWithId(id, rd, temp);
+    },
+    getShapes() {
+      return canvas.getShapes();
+    },
+    redraw() {
+      return canvas.redraw();
+    },
+    moveToFront(shape) {
+      canvas.moveToFront(shape);
+    },
+    moveToBack(shape) {
+      canvas.moveToBack(shape);
+    },
+    getShapeById(id) {
+      return canvas.getShapeById(id);
+    },
+    recreateShape(payload) {
+      return canvas.recreateShape(payload);
+    },
+    clearAllShapes() {
+      canvas.clearAllShapes();
+    },
+  };
+  const shapesSelector: CanvasTool[] = [
+    new LineFactory(eventBus),
+    new CircleFactory(eventBus),
+    new RectangleFactory(eventBus),
+    new TriangleFactory(eventBus),
+  ];
+  const toolArea = new ToolArea(
+    shapesSelector,
+    menu,
+    new SelectionManager(sm, eventBus)
+  );
+  canvas = new Canvas(canvasDomElm, toolArea);
 
-    eventStreamTextArea.value = "";
-    const replayedEvents: DomainEvent[] = [];
-    canvas["shapes"].forEach((s) => {
-      replayedEvents.push({
-        type: EventTypes.ADD_SHAPE_EVENT,
-        payload: s.toSerializable(),
-        timestamp: Date.now(),
-      });
-    });
-    replayedEvents.sort((a, b) => a.timestamp - b.timestamp);
-    replayedEvents.forEach((event) => {
-      if ("temporary" in event.payload && event.payload?.temporary) {
-        return;
-      }
-      eventStreamTextArea.value += JSON.stringify(event) + "\n";
-    });
-    eventStreamTextArea.scrollTop = eventStreamTextArea.scrollHeight;
+  // --- Event Handlers ---
+  initEventBus(eventBus, eventStreamTextArea, sm);
+  initEventLog(loadEventsButton, eventStreamTextArea, eventBus, canvas, sm);
 
-    sm.redraw();
-  });
-
-  canvas.draw();
+  sm.redraw();
   return () => {};
 }

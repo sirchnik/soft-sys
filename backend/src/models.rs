@@ -7,6 +7,7 @@ pub struct Claims {
     pub email: String,
     pub exp: usize,
     pub display_name: String,
+    pub canvases: std::collections::HashMap<String, String>,
 }
 
 impl Display for Claims {

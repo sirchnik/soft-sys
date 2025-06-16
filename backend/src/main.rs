@@ -23,8 +23,15 @@ pub struct AppState {
 async fn main() {
     dotenv::dotenv().unwrap();
 
-    if env::var("JWT_SECRET").is_err() {
-        tracing::error!("JWT_SECRET is not set, using default secret for development purposes.");
+    let required_envs = ["JWT_SECRET"];
+    let missing_envs: Vec<&str> = required_envs
+        .iter()
+        .cloned()
+        .filter(|key| env::var(key).is_err())
+        .collect();
+
+    if !missing_envs.is_empty() {
+        tracing::error!("Missing required environment variables: {:?}", missing_envs);
         std::process::exit(1);
     }
 
@@ -47,9 +54,7 @@ async fn main() {
     let shared_state = Arc::new(AppState { db: Arc::new(pool) });
 
     let cors = CorsLayer::new()
-        .allow_origin(
-            ["http://localhost:3000", "http://localhost:3000"].map(|s| s.parse().unwrap()),
-        )
+        .allow_origin(["http://localhost:3000"].map(|s| s.parse().unwrap()))
         .allow_methods([
             Method::GET,
             Method::POST,

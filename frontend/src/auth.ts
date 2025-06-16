@@ -1,12 +1,13 @@
-let user: { email?: string } | null = null;
+let user: { email: string; canvases: Record<string, string> } | null = null;
 
 export async function fetchUser() {
   try {
-    const res = await fetch("http://localhost:8000/api/me", {
+    const res = await fetch("http://localhost:8000/api/auth/me", {
       credentials: "include",
     });
     if (res.ok) {
       user = await res.json();
+      console.log("Benutzer erfolgreich geladen:", user);
     } else {
       user = null;
     }
@@ -16,23 +17,12 @@ export async function fetchUser() {
   }
 }
 
-export async function checkAuth(): Promise<boolean> {
-  try {
-    const res = await fetch("http://localhost:8000/api/me", {
-      credentials: "include",
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
 export function getUser() {
   return user;
 }
 
 export async function logout() {
-  await fetch("http://localhost:8000/api/logout", {
+  await fetch("http://localhost:8000/api/auth/logout", {
     method: "POST",
     credentials: "include",
   });

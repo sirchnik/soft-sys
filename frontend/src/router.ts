@@ -22,12 +22,10 @@ export async function renderPage(route: string) {
   try {
     afterLeave();
     renderNavBar(route);
-    if (pageContent) pageContent.innerHTML = "";
     afterLeave = (await (routes[route] || routes["404"])()) || (() => {});
   } catch (error) {
     console.error(error);
-    if (pageContent)
-      pageContent.innerHTML = "<h1>Fehler beim Laden der Seite</h1>";
+    pageContent.innerHTML = "<h1>Fehler beim Laden der Seite</h1>";
   }
 }
 
@@ -38,8 +36,7 @@ export function navigateTo(route: string) {
 
 function notFound() {
   document.title = "404 - Seite nicht gefunden";
-  if (pageContent)
-    pageContent.innerHTML = `
+  pageContent.innerHTML = `
       <h1>404 - Seite nicht gefunden</h1>
       <p>Die angeforderte Seite existiert nicht.</p>
       <a href="/" class="nav-link" data-route="">Zurück zur Startseite</a>
@@ -53,7 +50,7 @@ function home() {
     navigateTo("login");
     return () => {};
   }
-  if (pageContent) canvas(pageContent);
+  canvas(pageContent);
   return () => {};
 }
 
@@ -89,7 +86,7 @@ function login() {
     const email = data.get("email");
     const password = data.get("password");
     try {
-      const res = await fetch("http://localhost:8000/api/login", {
+      const res = await fetch("http://localhost:8000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
@@ -147,7 +144,7 @@ function register() {
     const password = data.get("password");
     const display_name = data.get("display_name");
     try {
-      const res = await fetch("http://localhost:8000/api/register", {
+      const res = await fetch("http://localhost:8000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, display_name }),

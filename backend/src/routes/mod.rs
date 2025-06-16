@@ -1,10 +1,10 @@
 mod auth;
+mod canvas;
 
-use crate::routes::auth::{login, logout, register};
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::{Router, routing::get_service, routing::post};
+use axum::{Router, routing, routing::get_service};
 use std::env;
 use tower_http::services::ServeDir;
 
@@ -17,10 +17,18 @@ pub fn create_router() -> Router {
         .nest(
             "/api",
             Router::new()
-                .route("/login", post(login))
-                .route("/register", post(register))
-                .route("/me", axum::routing::get(crate::routes::auth::me))
-                .route("/logout", post(logout)),
+                .nest(
+                    "/auth",
+                    Router::new()
+                        .route("/login", routing::post(auth::login))
+                        .route("/register", routing::post(auth::register))
+                        .route("/me", routing::get(auth::me))
+                        .route("/logout", routing::post(auth::logout)),
+                )
+                .nest(
+                    "/canvas",
+                    Router::new().route("/", routing::post(canvas::create_canvas)),
+                ),
         )
         .nest_service("/dist", get_service(ServeDir::new(dist_path)))
         .nest_service("/static", get_service(ServeDir::new(static_path)))

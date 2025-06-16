@@ -4,6 +4,7 @@ use crate::{AppState, auth::jwt::KEYS};
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher, PasswordVerifier};
+use axum::http::StatusCode;
 use axum::{
     Extension, Json,
     http::header,
@@ -12,6 +13,7 @@ use axum::{
 use jsonwebtoken::encode;
 use serde::Deserialize;
 use sqlx::Row;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -41,7 +43,6 @@ pub async fn register(
         .await
         .unwrap();
 
-    use axum::http::StatusCode;
     Ok(StatusCode::CREATED)
 }
 
@@ -60,18 +61,18 @@ pub async fn login(
         .bind(&payload.email)
         .fetch_optional(&*state.db)
         .await
-        .map_err(|_| AuthError::WrongCredentials)?;
+        .unwrap(); // 500 if fail
 
     let row = match row {
         Some(row) => row,
         None => return Err(AuthError::WrongCredentials),
     };
 
+    let user_id: String = row.try_get("id").unwrap();
     let hash: String = row
         .try_get("password_hash")
         .map_err(|_| AuthError::WrongCredentials)?;
     let display_name: String = row.try_get("display_name").unwrap();
-    let user_id: String = row.try_get("id").unwrap();
 
     // Verify password
     let parsed_hash = argon2::PasswordHash::new(&hash).map_err(|_| AuthError::WrongCredentials)?;
@@ -79,9 +80,23 @@ pub async fn login(
         .verify_password(payload.password.as_bytes(), &parsed_hash)
         .map_err(|_| AuthError::WrongCredentials)?;
 
+    let rows = sqlx::query("SELECT canvas_id, right FROM user_canvas WHERE user_id = $1")
+        .bind(&user_id)
+        .fetch_all(&*state.db)
+        .await
+        .unwrap(); // 500 if fail
+
+    let mut canvases = HashMap::new();
+    for row in rows {
+        let canvas_id: String = row.try_get("canvas_id").unwrap();
+        let right: String = row.try_get("right").unwrap();
+        canvases.insert(canvas_id, right);
+    }
+
     let claims = Claims {
         email: payload.email.clone(),
         exp: 2000000000,
+        canvases,
         display_name: display_name.clone(),
         id: user_id.clone(),
     };
