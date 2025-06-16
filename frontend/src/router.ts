@@ -30,7 +30,12 @@ export async function renderPage(route: string) {
 }
 
 export function navigateTo(route: string) {
-  history.replaceState({ path: route }, "", route);
+  if (route === "" || route === "/") {
+    history.pushState({}, "", "/");
+    renderPage("");
+    return;
+  }
+  history.pushState({}, "", route);
   renderPage(route);
 }
 
