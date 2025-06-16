@@ -1,6 +1,7 @@
 use crate::AppState;
 use crate::auth::jwt::KEYS;
 use crate::models::Claims;
+use axum::body::Body;
 use axum::http::StatusCode;
 use axum::{Extension, http::header, response::Response};
 use jsonwebtoken::encode;
@@ -33,8 +34,8 @@ pub async fn create_canvas(
     let token = encode(&jsonwebtoken::Header::default(), &claims, &KEYS.encoding)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let cookie = format!("access_token={}; HttpOnly; Path=/; SameSite=Lax", token);
-    let mut response = Response::new(axum::body::Body::from(
-        serde_json::to_string(&claims).unwrap(),
+    let mut response = Response::new(Body::from(
+        serde_json::json!({ "id": canvas_id }).to_string(),
     ));
     response
         .headers_mut()

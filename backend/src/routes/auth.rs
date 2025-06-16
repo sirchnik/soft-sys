@@ -4,6 +4,7 @@ use crate::{AppState, auth::jwt::KEYS};
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher, PasswordVerifier};
+use axum::body::Body;
 use axum::http::StatusCode;
 use axum::{
     Extension, Json,
@@ -103,7 +104,7 @@ pub async fn login(
     let token = encode(&jsonwebtoken::Header::default(), &claims, &KEYS.encoding)
         .map_err(|_| AuthError::TokenCreation)?;
     let cookie = format!("access_token={}; HttpOnly; Path=/; SameSite=Lax", token);
-    let mut response = Response::new(axum::body::Body::from(
+    let mut response = Response::new(Body::from(
         serde_json::json!({"email": payload.email, "display_name": display_name}).to_string(),
     ));
     response
@@ -118,7 +119,7 @@ pub async fn me(claims: Claims) -> impl IntoResponse {
 
 pub async fn logout() -> impl IntoResponse {
     let cookie = "access_token=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0";
-    let mut response = Response::new(axum::body::Body::from("Logged out"));
+    let mut response = Response::new(Body::from("Logged out"));
     response
         .headers_mut()
         .insert(header::SET_COOKIE, cookie.parse().unwrap());

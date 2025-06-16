@@ -48,6 +48,8 @@ export async function canvas(pageContent: HTMLElement) {
       });
       if (resp.ok) {
         const newCanvas = await resp.json();
+        console.log("New canvas created:", newCanvas);
+        user.canvases[newCanvas.id] = "O";
         initDrawer(pageContent, newCanvas.id);
       } else {
         const err = await resp.text();
