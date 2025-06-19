@@ -1,4 +1,5 @@
 mod axum_app;
+mod wtransport_app;
 
 use tokio::task::JoinHandle;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -9,7 +10,8 @@ use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 use std::sync::Arc;
-use wtransport::{Endpoint, Identity, ServerConfig};
+
+use crate::wtransport_app::create_wtransport;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -53,38 +55,9 @@ async fn main() -> Result<()> {
 
     let axum_handle: JoinHandle<()> = axum_app::create_axum(shared_state.clone()).await;
 
-    // Spawn WebTransport server
-    let webtransport_handle = tokio::spawn(async move {
-        let identity = Identity::load_pemfiles(
-            &env::var("CERT_PATH").unwrap_or_else(|_| "../cert.pem".to_string()),
-            &env::var("KEY_PATH").unwrap_or_else(|_| "../key.pem".to_string()),
-        )
-        .await
-        .unwrap();
-        let config = ServerConfig::builder()
-            .with_bind_default(4433)
-            .with_identity(identity)
-            .build();
-        tracing::debug!("WebTransport listening on port 4433");
-        let server = Endpoint::server(config).unwrap();
-        loop {
-            let incoming_session = server.accept().await;
-            let incoming_request = incoming_session.await;
-            if let Ok(incoming_request) = incoming_request {
-                let connection = incoming_request.accept().await;
-                if let Ok(connection) = connection {
-                    let (a, mut b) = connection.accept_bi().await.unwrap();
-                    let mut buf = [0; 1024];
-                    b.read(&mut buf).await.unwrap();
-                    let received = String::from_utf8_lossy(&buf).to_string();
-                    tracing::debug!("Received data: {}", received);
-                    println!("New WebTransport connection established");
-                }
-            }
-        }
-    });
+    let wtransport_handle: JoinHandle<()> = create_wtransport(shared_state.clone()).await;
 
     // Wait for either server to finish (or error)
-    let _ = tokio::try_join!(axum_handle, webtransport_handle)?;
+    let _ = tokio::try_join!(axum_handle, wtransport_handle)?;
     Ok(())
 }

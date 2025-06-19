@@ -21,6 +21,7 @@ import {
   Shape,
   Triangle,
 } from "./shapes";
+import { WTransEvent } from "./wtrans-event";
 
 export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
@@ -743,6 +744,7 @@ export function canvasPage(pageContent: HTMLElement) {
   }
 
   const eventBus = new EventBus();
+  const wtransEvent = new WTransEvent(eventBus);
 
   let canvas: Canvas;
   const sm: ShapeManager = {
@@ -795,5 +797,8 @@ export function canvasPage(pageContent: HTMLElement) {
   initEventLog(loadEventsButton, eventStreamTextArea, eventBus, canvas, sm);
 
   sm.redraw();
-  return () => {};
+  void wtransEvent.connect();
+  return () => {
+    void wtransEvent.disconnect();
+  };
 }
