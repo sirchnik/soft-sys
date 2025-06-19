@@ -1,8 +1,18 @@
-import { getUser } from "./auth";
-import { init as initDrawer } from "./drawer/drawer";
+import { getUser } from "../auth";
+import { navigateTo } from "../router";
 
-export async function canvas(pageContent: HTMLElement) {
-  const user = await getUser();
+export function homePage(pageContent: HTMLElement) {
+  document.title = "Home";
+  if (!getUser()) {
+    navigateTo("login");
+    return () => {};
+  }
+  home(pageContent);
+  return () => {};
+}
+
+export async function home(pageContent: HTMLElement) {
+  const user = getUser();
   document.title = "Canvas";
 
   // Fetch user's canvases
@@ -12,6 +22,7 @@ export async function canvas(pageContent: HTMLElement) {
     <h2>Select a Canvas</h2>
     <ul id="canvas-list">
       ${Object.entries(user?.canvases)
+        .sort(([a], [b]) => a.localeCompare(b))
         .map(
           ([id, right]) =>
             `<li><button data-id="${id}">${id}: ${right}</button></li>`
@@ -29,7 +40,7 @@ export async function canvas(pageContent: HTMLElement) {
   pageContent.querySelectorAll("#canvas-list button").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       const id = (e.target as HTMLButtonElement).dataset.id;
-      initDrawer(pageContent, id);
+      navigateTo(`/canvas/${id}`);
     });
   });
 
@@ -50,7 +61,7 @@ export async function canvas(pageContent: HTMLElement) {
         const newCanvas = await resp.json();
         console.log("New canvas created:", newCanvas);
         user.canvases[newCanvas.id] = "O";
-        initDrawer(pageContent, newCanvas.id);
+        navigateTo(`/canvas/${newCanvas.id}`);
       } else {
         const err = await resp.text();
         (

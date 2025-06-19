@@ -708,7 +708,8 @@ function initEventBus(
   });
 }
 
-export function init(pageContent: HTMLElement, canvasId: string) {
+export function canvasPage(pageContent: HTMLElement) {
+  document.title = "Zeichenfläche";
   const content = `
       <p>
         Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
