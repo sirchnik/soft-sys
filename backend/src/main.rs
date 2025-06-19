@@ -6,6 +6,7 @@ mod routes;
 use routes::create_router;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use anyhow::Result;
 use axum::{Extension, http::Method};
 use dotenv;
 use sqlx::SqlitePool;
@@ -13,6 +14,7 @@ use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 use std::sync::Arc;
 use tower_http::cors::CorsLayer;
+use wtransport::{Endpoint, Identity, ServerConfig};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -20,7 +22,7 @@ pub struct AppState {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     dotenv::dotenv().unwrap();
 
     let required_envs = ["JWT_SECRET"];
@@ -75,5 +77,36 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(bind_to).await.unwrap();
 
     tracing::debug!("listening on {}", listener.local_addr().unwrap());
-    axum::serve(listener, app).await.unwrap();
+
+    // Spawn Axum server
+    let axum_handle = tokio::spawn(async move {
+        axum::serve(listener, app).await.unwrap();
+    });
+
+    // Spawn WebTransport server
+    let webtransport_handle = tokio::spawn(async move {
+        let config = ServerConfig::builder()
+            .with_bind_default(4433)
+            .with_identity(
+                Identity::load_pemfiles("cert.pem", "key.pem")
+                    .await
+                    .unwrap(),
+            )
+            .build();
+        let server = Endpoint::server(config).unwrap();
+        loop {
+            let incoming_session = server.accept().await;
+            let incoming_request = incoming_session.await;
+            if let Ok(incoming_request) = incoming_request {
+                let connection = incoming_request.accept().await;
+                if let Ok(_connection) = connection {
+                    println!("New WebTransport connection established");
+                }
+            }
+        }
+    });
+
+    // Wait for either server to finish (or error)
+    let _ = tokio::try_join!(axum_handle, webtransport_handle)?;
+    Ok(())
 }
