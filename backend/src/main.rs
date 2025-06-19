@@ -1,19 +1,14 @@
-mod auth;
-mod error;
-mod models;
-mod routes;
+mod axum_app;
 
-use routes::create_router;
+use tokio::task::JoinHandle;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use anyhow::Result;
-use axum::{Extension, http::Method};
 use dotenv;
 use sqlx::SqlitePool;
 use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
 use std::sync::Arc;
-use tower_http::cors::CorsLayer;
 use wtransport::{Endpoint, Identity, ServerConfig};
 
 #[derive(Clone)]
@@ -44,6 +39,7 @@ async fn main() -> Result<()> {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
     let pool = SqlitePoolOptions::new()
         .connect(
             env::var("DATABASE_URL")
@@ -55,33 +51,7 @@ async fn main() -> Result<()> {
 
     let shared_state = Arc::new(AppState { db: Arc::new(pool) });
 
-    let cors = CorsLayer::new()
-        .allow_origin(["http://localhost:3000"].map(|s| s.parse().unwrap()))
-        .allow_methods([
-            Method::GET,
-            Method::POST,
-            Method::PUT,
-            Method::DELETE,
-            Method::OPTIONS,
-        ])
-        .allow_credentials(true)
-        .allow_headers([
-            axum::http::header::AUTHORIZATION,
-            axum::http::header::CONTENT_TYPE,
-            axum::http::header::ACCEPT,
-        ]);
-
-    let app = create_router().layer(Extension(shared_state)).layer(cors);
-
-    let bind_to = env::var("BIND_TO").unwrap_or("0.0.0.0:8000".to_string());
-    let listener = tokio::net::TcpListener::bind(bind_to).await.unwrap();
-
-    tracing::debug!("Axum listening on {}", listener.local_addr().unwrap());
-
-    // Spawn Axum server
-    let axum_handle = tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let axum_handle: JoinHandle<()> = axum_app::create_axum(shared_state.clone()).await;
 
     // Spawn WebTransport server
     let webtransport_handle = tokio::spawn(async move {

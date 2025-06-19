@@ -1,5 +1,5 @@
-use crate::auth::jwt::KEYS;
-use crate::models::Claims;
+use crate::axum_app::auth::jwt::KEYS;
+use crate::axum_app::models::Claims;
 use axum::{
     Json,
     http::{StatusCode, request::Parts},
