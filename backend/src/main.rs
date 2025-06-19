@@ -76,7 +76,7 @@ async fn main() -> Result<()> {
     let bind_to = env::var("BIND_TO").unwrap_or("0.0.0.0:8000".to_string());
     let listener = tokio::net::TcpListener::bind(bind_to).await.unwrap();
 
-    tracing::debug!("listening on {}", listener.local_addr().unwrap());
+    tracing::debug!("Axum listening on {}", listener.local_addr().unwrap());
 
     // Spawn Axum server
     let axum_handle = tokio::spawn(async move {
@@ -85,21 +85,29 @@ async fn main() -> Result<()> {
 
     // Spawn WebTransport server
     let webtransport_handle = tokio::spawn(async move {
+        let identity = Identity::load_pemfiles(
+            &env::var("CERT_PATH").unwrap_or_else(|_| "../cert.pem".to_string()),
+            &env::var("KEY_PATH").unwrap_or_else(|_| "../key.pem".to_string()),
+        )
+        .await
+        .unwrap();
         let config = ServerConfig::builder()
             .with_bind_default(4433)
-            .with_identity(
-                Identity::load_pemfiles("cert.pem", "key.pem")
-                    .await
-                    .unwrap(),
-            )
+            .with_identity(identity)
             .build();
+        tracing::debug!("WebTransport listening on port 4433");
         let server = Endpoint::server(config).unwrap();
         loop {
             let incoming_session = server.accept().await;
             let incoming_request = incoming_session.await;
             if let Ok(incoming_request) = incoming_request {
                 let connection = incoming_request.accept().await;
-                if let Ok(_connection) = connection {
+                if let Ok(connection) = connection {
+                    let (a, mut b) = connection.accept_bi().await.unwrap();
+                    let mut buf = [0; 1024];
+                    b.read(&mut buf).await.unwrap();
+                    let received = String::from_utf8_lossy(&buf).to_string();
+                    tracing::debug!("Received data: {}", received);
                     println!("New WebTransport connection established");
                 }
             }

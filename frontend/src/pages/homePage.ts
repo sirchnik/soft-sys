@@ -51,7 +51,7 @@ export async function home(pageContent: HTMLElement) {
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
-      const resp = await fetch("http://localhost:8000/api/canvas", {
+      const resp = await fetch(`${__BACKEND_URL__}/api/canvas`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),

@@ -34,7 +34,7 @@ export function registerPage(pageContent: HTMLElement) {
     const password = data.get("password");
     const display_name = data.get("display_name");
     try {
-      const res = await fetch("http://localhost:8000/api/auth/register", {
+      const res = await fetch(`${__BACKEND_URL__}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, display_name }),

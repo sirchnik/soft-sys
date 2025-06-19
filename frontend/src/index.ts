@@ -1,11 +1,12 @@
 import { fetchUser } from "./auth";
 import { setupNavEvents } from "./navbar";
 import { renderPage, setPageContent } from "./router";
+import { wt } from "./services/wtransport";
 
 let app = document.getElementById("app");
 let pageContent = document.querySelector(".page-content") as HTMLElement | null;
 
-function init() {
+async function init() {
   if (!pageContent) {
     pageContent = document.querySelector(".page-content");
   }

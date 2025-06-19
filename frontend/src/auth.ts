@@ -2,7 +2,7 @@ let user: { email: string; canvases: Record<string, string> } | null = null;
 
 export async function fetchUser() {
   try {
-    const res = await fetch("http://localhost:8000/api/auth/me", {
+    const res = await fetch(`${__BACKEND_URL__}/api/auth/me`, {
       credentials: "include",
     });
     if (res.ok) {
@@ -22,7 +22,7 @@ export function getUser() {
 }
 
 export async function logout() {
-  await fetch("http://localhost:8000/api/auth/logout", {
+  await fetch(`${__BACKEND_URL__}/api/auth/logout`, {
     method: "POST",
     credentials: "include",
   });

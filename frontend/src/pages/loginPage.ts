@@ -32,7 +32,7 @@ export function loginPage(pageContent: HTMLElement) {
     const email = data.get("email");
     const password = data.get("password");
     try {
-      const res = await fetch("http://localhost:8000/api/auth/login", {
+      const res = await fetch(`${__BACKEND_URL__}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

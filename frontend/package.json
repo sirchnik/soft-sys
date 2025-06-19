@@ -2,10 +2,11 @@
   "name": "drawer",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "node live-server.cjs & esbuild --watch src/index.ts --bundle --outfile=dist/index.js --sourcemap",
-    "build": "esbuild src/index.ts --bundle --outfile=dist/index.js --minify",
+    "dev": "node live-server.cjs & CERT_FILE=../cert.pem node build.js && fg",
+    "build": "NODE_ENV=production node build.js",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [],
