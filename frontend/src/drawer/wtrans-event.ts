@@ -61,11 +61,21 @@ export class WTransEvent {
         break;
       }
 
-      console.log("event recv");
-      const event: DomainEvent = JSON.parse(new TextDecoder().decode(value));
-      this.eventBus.dispatch({
-        ...event,
-        payload: { ...event.payload, temporary: true },
+      const parsed = JSON.parse(new TextDecoder().decode(value));
+      const events = Array.isArray(parsed)
+        ? parsed.map((e) => {
+            try {
+              return JSON.parse(e);
+            } catch {
+              console.log("unparsable", e);
+            }
+          })
+        : [parsed];
+      events.forEach((event) => {
+        this.eventBus.dispatch({
+          ...event,
+          payload: { ...event.payload, temporary: true },
+        });
       });
     }
   }

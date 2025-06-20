@@ -1,4 +1,4 @@
-use crate::AppState;
+use crate::axum_app::AppState;
 use crate::axum_app::auth::jwt::KEYS;
 use crate::axum_app::models::Claims;
 use axum::body::Body;

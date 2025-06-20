@@ -29,6 +29,14 @@ CREATE TABLE IF NOT EXISTS canvas (
         )
 );
 
+CREATE TABLE IF NOT EXISTS canvas_events(
+    canvas_id VARCHAR(36),
+    events TEXT,
+    FOREIGN KEY (canvas_id) REFERENCES canvas(id) ON DELETE CASCADE
+);
+
+CREATE INDEX canvas_events_id ON canvas_events(canvas_id);
+
 CREATE TABLE IF NOT EXISTS user_canvas (
     user_id VARCHAR(36) NOT NULL,
     canvas_id VARCHAR(36) NOT NULL,

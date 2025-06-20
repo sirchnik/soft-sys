@@ -6,17 +6,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use anyhow::Result;
 use dotenv;
-use sqlx::SqlitePool;
-use sqlx::sqlite::SqlitePoolOptions;
 use std::env;
-use std::sync::Arc;
-
-use crate::wtransport_app::create_wtransport;
-
-#[derive(Clone)]
-pub struct AppState {
-    pub db: Arc<SqlitePool>,
-}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -42,20 +32,9 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let pool = SqlitePoolOptions::new()
-        .connect(
-            env::var("DATABASE_URL")
-                .unwrap_or("sqlite://drawer.db".to_string())
-                .as_str(),
-        )
-        .await
-        .unwrap();
+    let axum_handle: JoinHandle<()> = axum_app::create_axum().await;
 
-    let shared_state = Arc::new(AppState { db: Arc::new(pool) });
-
-    let axum_handle: JoinHandle<()> = axum_app::create_axum(shared_state.clone()).await;
-
-    let wtransport_handle: JoinHandle<()> = create_wtransport(shared_state.clone()).await;
+    let wtransport_handle: JoinHandle<()> = wtransport_app::create_wtransport().await;
 
     // Wait for either server to finish (or error)
     let _ = tokio::try_join!(axum_handle, wtransport_handle)?;

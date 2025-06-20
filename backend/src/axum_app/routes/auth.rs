@@ -1,6 +1,7 @@
+use crate::axum_app::AppState;
+use crate::axum_app::auth::jwt::KEYS;
 use crate::axum_app::error::AuthError;
 use crate::axum_app::models::Claims;
-use crate::{AppState, axum_app::auth::jwt::KEYS};
 use argon2::password_hash::SaltString;
 use argon2::password_hash::rand_core::OsRng;
 use argon2::{Argon2, PasswordHasher, PasswordVerifier};

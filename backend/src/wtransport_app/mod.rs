@@ -2,6 +2,8 @@ use anyhow::Result;
 use futures::StreamExt;
 use futures::stream::SelectAll;
 use serde::{Deserialize, Serialize};
+use sqlx::Row;
+use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::{collections::HashMap, env, sync::Arc, time::Duration};
 use tokio::{
     sync::{
@@ -32,7 +34,16 @@ struct FirstData {
     pub canvas_id: String,
 }
 
-pub async fn create_wtransport(_shared_state: Arc<crate::AppState>) -> tokio::task::JoinHandle<()> {
+pub async fn create_wtransport() -> tokio::task::JoinHandle<()> {
+    let pool = SqlitePoolOptions::new()
+        .connect(
+            env::var("DATABASE_URL")
+                .unwrap_or("sqlite://drawer.db".to_string())
+                .as_str(),
+        )
+        .await
+        .unwrap();
+
     let identity = Identity::load_pemfiles(
         &env::var("CERT_PATH").unwrap_or_else(|_| "../cert.pem".to_string()),
         &env::var("KEY_PATH").unwrap_or_else(|_| "../key.pem".to_string()),
@@ -53,6 +64,7 @@ pub async fn create_wtransport(_shared_state: Arc<crate::AppState>) -> tokio::ta
             tokio::spawn(handle_incoming_session(
                 incoming_session,
                 canvas_streams.clone(),
+                pool.clone(),
             ));
         }
     });
@@ -62,10 +74,12 @@ pub async fn create_wtransport(_shared_state: Arc<crate::AppState>) -> tokio::ta
 async fn handle_incoming_session(
     incoming_session: IncomingSession,
     canvas_streams: WTransportStreams,
+    pool: SqlitePool,
 ) {
     async fn handle_incoming_session_impl(
         incoming_session: IncomingSession,
         canvas_streams: WTransportStreams,
+        pool: SqlitePool,
     ) -> Result<()> {
         info!("Waiting for session request...");
         let session_request = incoming_session.await?;
@@ -85,6 +99,20 @@ async fn handle_incoming_session(
             None => return Err(anyhow::anyhow!("Stream closed before reading data")),
         };
         let first_data: FirstData = serde_json::from_slice(&buf[..bytes_read])?;
+        let mut events_coll = vec![];
+        let rows = sqlx::query("SELECT events FROM canvas_events WHERE canvas_id = $1")
+            .bind(&first_data.canvas_id)
+            .fetch_all(&pool)
+            .await
+            .unwrap(); // 500 if fail
+        for row in rows {
+            let events: String = row.try_get("events").unwrap();
+            events_coll.push(events)
+        }
+        stream
+            .0
+            .write(serde_json::to_string(&events_coll)?.as_bytes())
+            .await?;
         let (data_send, data_recv) = mpsc::unbounded_channel::<String>();
         canvas_streams
             .lock()
@@ -156,12 +184,26 @@ async fn handle_incoming_session(
             info!("Received {} bytes from client", bytes_read);
             let str_data = std::str::from_utf8(&buf[..bytes_read])?;
 
+            println!("{}", first_data.canvas_id);
+            let res = sqlx::query("INSERT INTO canvas_events (canvas_id, events) VALUES ($1, $2)")
+                .bind(&first_data.canvas_id)
+                .bind(str_data)
+                .execute(&pool)
+                .await;
+
+            match res {
+                Ok(_) => {}
+                Err(e) => {
+                    println!("Error {:?}", e);
+                }
+            }
+
             data_send.send(String::from(str_data)).unwrap();
             // Here you can process the received data as needed
         }
         Ok(())
     }
 
-    let result = handle_incoming_session_impl(incoming_session, canvas_streams).await;
+    let result = handle_incoming_session_impl(incoming_session, canvas_streams, pool).await;
     info!("Result: {:?}", result);
 }

@@ -4,12 +4,28 @@ mod models;
 mod routes;
 
 use axum::{Extension, http::Method};
+use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
 use std::{env, sync::Arc};
 use tower_http::cors::CorsLayer;
 
 use crate::axum_app::routes::create_router;
 
-pub async fn create_axum(shared_state: Arc<crate::AppState>) -> tokio::task::JoinHandle<()> {
+#[derive(Clone)]
+pub struct AppState {
+    pub db: Arc<SqlitePool>,
+}
+
+pub async fn create_axum() -> tokio::task::JoinHandle<()> {
+    let pool = SqlitePoolOptions::new()
+        .connect(
+            env::var("DATABASE_URL")
+                .unwrap_or("sqlite://drawer.db".to_string())
+                .as_str(),
+        )
+        .await
+        .unwrap();
+    let shared_state = Arc::new(AppState { db: Arc::new(pool) });
+
     let cors = CorsLayer::new()
         .allow_origin(["http://localhost:3000"].map(|s| s.parse().unwrap()))
         .allow_methods([
