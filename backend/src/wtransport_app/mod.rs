@@ -1,21 +1,30 @@
 use anyhow::Result;
+use futures::StreamExt;
 use futures::stream::SelectAll;
 use serde::{Deserialize, Serialize};
-use std::{cmp::Reverse, collections::HashMap, env, sync::Arc, time::Duration};
+use std::{collections::HashMap, env, sync::Arc, time::Duration};
 use tokio::{
     sync::{
         Mutex,
-        mpsc::{self, UnboundedReceiver, UnboundedSender},
+        mpsc::{self, UnboundedSender},
     },
     task::JoinHandle,
 };
+use tokio_stream::wrappers::UnboundedReceiverStream;
 use tracing::info;
-use wtransport::{
-    Endpoint, Identity, RecvStream, SendStream, ServerConfig, endpoint::IncomingSession,
-};
+use wtransport::{Endpoint, Identity, SendStream, ServerConfig, endpoint::IncomingSession};
 
-type WTransportStreams =
-    Arc<Mutex<HashMap<String, (JoinHandle<()>, UnboundedSender<(SendStream, RecvStream)>)>>>;
+type WTransportStreams = Arc<
+    Mutex<
+        HashMap<
+            String,
+            (
+                JoinHandle<()>,
+                UnboundedSender<(mpsc::UnboundedReceiver<String>, SendStream)>,
+            ),
+        >,
+    >,
+>;
 
 #[derive(Serialize, Deserialize)]
 struct FirstData {
@@ -69,64 +78,79 @@ async fn handle_incoming_session(
         info!("Waiting for data from client...");
 
         // Shared list of senders to broadcast to all streams
+        let mut stream = connection.accept_bi().await.unwrap();
+        let mut buf = vec![0; 65536];
+        let bytes_read = match stream.1.read(&mut buf).await? {
+            Some(bytes_read) => bytes_read,
+            None => return Err(anyhow::anyhow!("Stream closed before reading data")),
+        };
+        let first_data: FirstData = serde_json::from_slice(&buf[..bytes_read])?;
+        let (data_send, data_recv) = mpsc::unbounded_channel::<String>();
+        canvas_streams
+            .lock()
+            .await
+            .entry(first_data.canvas_id.clone())
+            .or_insert_with(|| {
+                let (send, mut recv) =
+                    mpsc::unbounded_channel::<(mpsc::UnboundedReceiver<String>, SendStream)>();
+                (
+                    tokio::spawn(async move {
+                        let mut select_all = SelectAll::new();
+                        let mut sender_map = HashMap::<i32, SendStream>::new();
+                        let mut next_id = 0;
+
+                        loop {
+                            tokio::select! {
+                                Some(new_stream) = recv.recv() => {
+                                    let id = next_id;
+                                    next_id += 1;
+
+                                    println!("Registered id {}", id);
+
+                                    let stream = UnboundedReceiverStream::new(new_stream.0).map(move |msg| (msg, id));
+                                    sender_map.insert(id, new_stream.1);
+                                    select_all.push(stream);
+                                }
+
+                                Some((msg, from_id)) = select_all.next() => {
+                                    println!("{}", msg);
+                                    // Broadcast the message to all other streams
+                for (&id, sender) in sender_map.iter_mut() {
+                    if id != from_id {
+                        let res = sender.write(msg.as_bytes()).await;
+                        println!("send to {} from {}", id, from_id);
+                    }
+                }
+
+                                }
+
+                                else => break,
+                            }
+                        }
+                    }),
+                    send,
+                )
+            })
+            .1
+            .send((data_recv, stream.0))
+            .unwrap();
         loop {
-            let conn = connection.clone();
-            let mut stream = conn.accept_bi().await.unwrap();
-            let mut buf = vec![0; 65536];
             let bytes_read = match stream.1.read(&mut buf).await? {
                 Some(bytes_read) => bytes_read,
-                None => continue,
+                None => break, // Stream closed
             };
-            let first_data: FirstData = serde_json::from_slice(&buf[..bytes_read]).unwrap();
+            if bytes_read == 0 {
+                break; // No more data
+            }
+            info!("Received {} bytes from client", bytes_read);
+            let str_data = std::str::from_utf8(&buf[..bytes_read])?;
+
+            data_send.send(String::from(str_data)).unwrap();
+            // Here you can process the received data as needed
         }
+        Ok(())
     }
 
     let result = handle_incoming_session_impl(incoming_session, canvas_streams).await;
     info!("Result: {:?}", result);
 }
-
-// canvas_streams
-//     .lock()
-//     .await
-//     .entry(first_data.canvas_id.clone())
-//     .or_insert_with(|| {
-//         let (mut send, mut recv) =
-//             mpsc::unbounded_channel::<(SendStream, RecvStream)>();
-//         (
-//             tokio::spawn(async move {
-//                 let mut select_all = SelectAll::new();
-//                 let mut sender_map = HashMap::<i32, SendStream>::new();
-//                 let mut next_id = 0;
-
-//                 loop {
-//                     tokio::select! {
-//                         Some(new_stream) = recv.recv() => {
-//                             let id = next_id;
-//                             next_id += 1;
-
-//                             select_all.push(stream);
-
-//                             // You can also store a sender for each stream if you want to write back to them
-//                             let (tx, _rx) = mpsc::unbounded_channel::<String>();
-//                             sender_map.insert(id, tx);
-//                         }
-
-//                         Some((from_id, msg)) = select_all.next() => {
-//                             // Broadcast the message to all other streams
-//                             for (&id, sender) in sender_map.iter() {
-//                                 if id != from_id {
-//                                     let _ = sender.send(msg.clone());
-//                                 }
-//                             }
-//                         }
-
-//                         else => break,
-//                     }
-//                 }
-//             }),
-//             send,
-//         )
-//     })
-//     .1
-//     .send((stream.0, stream.1))
-//     .unwrap();

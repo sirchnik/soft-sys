@@ -22,6 +22,16 @@ export class WTransEvent {
       console.log("WebTransport connection closed");
     });
     const stream = await this.wt.createBidirectionalStream();
+    const writer = stream.writable.getWriter();
+    await writer.write(
+      new TextEncoder().encode(
+        JSON.stringify({
+          command: "register",
+          canvas_id: "sfs343",
+        })
+      )
+    );
+    writer.releaseLock();
     const receive = this.receiveForward(stream);
     const send = this.sendForward(stream);
     return Promise.all([receive, send]);
@@ -34,9 +44,10 @@ export class WTransEvent {
         return;
       }
       const data = new TextEncoder().encode(JSON.stringify(event));
-      writer.write(data).catch((error) => {
+      void writer.write(data).catch((error) => {
         console.error("Error writing to WebTransport stream:", error);
       });
+      console.log("send msg");
     });
   }
 
@@ -45,10 +56,17 @@ export class WTransEvent {
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        console.log("done");
+        break;
+      }
 
+      console.log("event recv");
       const event: DomainEvent = JSON.parse(new TextDecoder().decode(value));
-      this.eventBus.dispatch(event);
+      this.eventBus.dispatch({
+        ...event,
+        payload: { ...event.payload, temporary: true },
+      });
     }
   }
 }
