@@ -91,6 +91,7 @@ async fn handle_incoming_session(
             .await
             .entry(first_data.canvas_id.clone())
             .or_insert_with(|| {
+                info!("Creating new canvas handler for {}", first_data.canvas_id);
                 let (send, mut recv) =
                     mpsc::unbounded_channel::<(mpsc::UnboundedReceiver<String>, SendStream)>();
                 (
@@ -114,14 +115,24 @@ async fn handle_incoming_session(
 
                                 Some((msg, from_id)) = select_all.next() => {
                                     println!("{}", msg);
-                                    // Broadcast the message to all other streams
-                for (&id, sender) in sender_map.iter_mut() {
-                    if id != from_id {
-                        let res = sender.write(msg.as_bytes()).await;
-                        println!("send to {} from {}", id, from_id);
-                    }
-                }
-
+                                    let mut to_remove = Vec::new();
+                                    for (&id, sender) in sender_map.iter_mut() {
+                                        if id != from_id {
+                                            match sender.write(msg.as_bytes()).await {
+                                                Ok(_) => {},
+                                                Err(wtransport::error::StreamWriteError::NotConnected) => {
+                                                    to_remove.push(id);
+                                                },
+                                                Err(_) =>{
+                                                    info!("Id {id} had and error");
+                                                    to_remove.push(id);
+                                                }
+                                            }
+                                        }
+                                    }
+                                    for id in to_remove {
+                                        sender_map.remove(&id);
+                                    }
                                 }
 
                                 else => break,

@@ -743,8 +743,10 @@ export function canvasPage(pageContent: HTMLElement) {
     return;
   }
 
+  const canvas_id = window.location.href.split("/").at(-1);
+
   const eventBus = new EventBus();
-  const wtransEvent = new WTransEvent(eventBus);
+  const wtransEvent = new WTransEvent(eventBus, canvas_id);
 
   let canvas: Canvas;
   const sm: ShapeManager = {

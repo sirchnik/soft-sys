@@ -3,7 +3,7 @@ import { DomainEvent, EventBus, EventHandler } from "./events";
 
 export class WTransEvent {
   private readonly wt: WebTransport;
-  constructor(private readonly eventBus: EventBus) {
+  constructor(private readonly eventBus: EventBus, private readonly canvas_id) {
     this.wt = createWT();
   }
 
@@ -27,7 +27,7 @@ export class WTransEvent {
       new TextEncoder().encode(
         JSON.stringify({
           command: "register",
-          canvas_id: "sfs343",
+          canvas_id: this.canvas_id,
         })
       )
     );
