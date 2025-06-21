@@ -15,7 +15,7 @@ export interface Point2D {
 }
 
 export interface BaseShapePayload {
-  id: number;
+  id: string;
   shapeType: "Line" | "Circle" | "Rectangle" | "Triangle";
   backgroundColor?: string;
   borderColor?: string;
@@ -43,7 +43,7 @@ export type DomainEvent = {
   | {
       type: EventTypes.REMOVE_SHAPE_EVENT;
       payload: {
-        shapeId: number;
+        shapeId: string;
         temporary?: boolean;
         forTriangleFactory?: boolean;
         noRedraw?: boolean;
@@ -52,26 +52,26 @@ export type DomainEvent = {
   | {
       type: EventTypes.MOVE_TO_FRONT_EVENT;
       payload: {
-        shapeId: number;
+        shapeId: string;
       };
     }
   | {
       type: EventTypes.MOVE_TO_BACK_EVENT;
       payload: {
-        shapeId: number;
+        shapeId: string;
       };
     }
   | {
       type: EventTypes.SET_BACKGROUND_COLOR_EVENT;
       payload: {
-        shapeId: number;
+        shapeId: string;
         color: string;
       };
     }
   | {
       type: EventTypes.SET_BORDER_COLOR_EVENT;
       payload: {
-        shapeId: number;
+        shapeId: string;
         color: string;
       };
     }

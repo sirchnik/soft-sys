@@ -1,3 +1,4 @@
+import { getUser } from "../auth";
 import { DrawOptions } from "./drawer";
 import { AddShapePayload, Point2D as EventPoint2D } from "./events";
 
@@ -8,19 +9,26 @@ export class Point2D implements EventPoint2D {
 }
 export class AbstractShape {
   private static counter: number = 0;
-  readonly id: number;
+  readonly id: string;
   backgroundColor: string;
   borderColor: string;
 
   constructor(options?: {
-    id?: number;
+    id?: string;
     backgroundColor?: string;
     borderColor?: string;
   }) {
-    const id = options?.id;
-    this.id = id === undefined ? AbstractShape.counter++ : id;
-    if (id !== undefined && id >= AbstractShape.counter) {
-      AbstractShape.counter = id + 1;
+    const [argUser, argNumStr] = options?.id?.split(":") ?? [];
+    const argNum = Number(argNumStr);
+    const user = getUser();
+    if (options?.id) {
+      this.id = options.id;
+      if (user.id === argUser && argNum >= AbstractShape.counter) {
+        AbstractShape.counter = Number(argNumStr) + 1;
+      }
+    } else {
+      this.id = `${user.id}:${AbstractShape.counter}`;
+      AbstractShape.counter++;
     }
     this.backgroundColor = options?.backgroundColor ?? "transparent";
     this.borderColor = options?.borderColor ?? "black";
@@ -46,7 +54,7 @@ export class Line extends AbstractShape implements Shape {
   constructor(
     readonly from: Point2D,
     readonly to: Point2D,
-    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+    options?: { id?: string; backgroundColor?: string; borderColor?: string }
   ) {
     super(options);
   }
@@ -115,7 +123,7 @@ export class Circle extends AbstractShape implements Shape {
   constructor(
     readonly center: Point2D,
     readonly radius: number,
-    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+    options?: { id?: string; backgroundColor?: string; borderColor?: string }
   ) {
     super(options);
   }
@@ -168,7 +176,7 @@ export class Rectangle extends AbstractShape implements Shape {
   constructor(
     readonly from: Point2D,
     readonly to: Point2D,
-    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+    options?: { id?: string; backgroundColor?: string; borderColor?: string }
   ) {
     super(options);
   }
@@ -231,7 +239,7 @@ export class Triangle extends AbstractShape implements Shape {
     readonly p1: Point2D,
     readonly p2: Point2D,
     readonly p3: Point2D,
-    options?: { id?: number; backgroundColor?: string; borderColor?: string }
+    options?: { id?: string; backgroundColor?: string; borderColor?: string }
   ) {
     super(options);
   }
@@ -305,7 +313,7 @@ export interface Shape {
   getBorderColor(): string;
   setBackgroundColor(value: string): unknown;
   getBackgroundColor(): string;
-  readonly id: number;
+  readonly id: string;
   draw(ctx: CanvasRenderingContext2D, drawOptions?: DrawOptions): void;
   isSelected(e: MouseEvent): boolean;
   toSerializable(): AddShapePayload;

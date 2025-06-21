@@ -1,4 +1,8 @@
-let user: { email: string; canvases: Record<string, string> } | null = null;
+let user: {
+  email: string;
+  canvases: Record<string, string>;
+  id: string;
+} | null = null;
 
 export async function fetchUser() {
   try {

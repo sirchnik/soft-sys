@@ -174,7 +174,7 @@ class SelectionManager {
         this.selectedShapes.forEach((shape) => {
           this.eventBus.dispatch({
             type: EventTypes.REMOVE_SHAPE_EVENT,
-            payload: { shapeId: Number(shape.id) },
+            payload: { shapeId: shape.id },
           });
         });
         hideMenu();
@@ -371,12 +371,12 @@ class ToolArea {
 interface ShapeManager {
   addShape(shape: Shape, redraw?: boolean, temporary?: boolean): this;
   removeShape(shape: Shape, redraw?: boolean, temporary?: boolean): this;
-  removeShapeWithId(id: number, redraw?: boolean, temporary?: boolean): this;
+  removeShapeWithId(id: string, redraw?: boolean, temporary?: boolean): this;
   redraw(): this;
   getShapes(): Shape[];
   moveToFront(shape: Shape): void;
   moveToBack(shape: Shape): void;
-  getShapeById(id: number): Shape | undefined;
+  getShapeById(id: string): Shape | undefined;
   recreateShape(payload: AddShapePayload): Shape | undefined;
   clearAllShapes(): void;
 }
@@ -430,7 +430,7 @@ class Canvas implements ShapeManager, CanvasTool {
   }
   // --- End Mouse Event Handlers ---
 
-  getShapeById(id: number): Shape | undefined {
+  getShapeById(id: string): Shape | undefined {
     return (
       this.shapes.find((s) => s.id === id) ||
       this.temporaryShapes.find((s) => s.id === id)
@@ -553,7 +553,7 @@ class Canvas implements ShapeManager, CanvasTool {
   }
 
   removeShapeWithId(
-    id: number,
+    id: string,
     redraw: boolean = true,
     temporary: boolean = false
   ): this {
