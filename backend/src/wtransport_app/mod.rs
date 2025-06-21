@@ -182,24 +182,27 @@ async fn handle_incoming_session(
                 break; // No more data
             }
             info!("Received {} bytes from client", bytes_read);
-            let str_data = std::str::from_utf8(&buf[..bytes_read])?;
+            let str_datas = std::str::from_utf8(&buf[..bytes_read])?
+                .split('\n')
+                .filter(|s| !s.is_empty());
 
-            println!("{}", first_data.canvas_id);
-            let res = sqlx::query("INSERT INTO canvas_events (canvas_id, events) VALUES ($1, $2)")
-                .bind(&first_data.canvas_id)
-                .bind(str_data)
-                .execute(&pool)
-                .await;
+            for str_data in str_datas {
+                let res =
+                    sqlx::query("INSERT INTO canvas_events (canvas_id, events) VALUES ($1, $2)")
+                        .bind(&first_data.canvas_id)
+                        .bind(str_data)
+                        .execute(&pool)
+                        .await;
 
-            match res {
-                Ok(_) => {}
-                Err(e) => {
-                    println!("Error {:?}", e);
+                match res {
+                    Ok(_) => {}
+                    Err(e) => {
+                        println!("Error {:?}", e);
+                    }
                 }
-            }
 
-            data_send.send(String::from(str_data)).unwrap();
-            // Here you can process the received data as needed
+                data_send.send(str_data.to_string()).unwrap();
+            }
         }
         Ok(())
     }
