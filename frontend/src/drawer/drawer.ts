@@ -21,7 +21,7 @@ import {
   Shape,
   Triangle,
 } from "./shapes";
-import { WTransEvent } from "./wtrans-event";
+import { WSocketEvent } from "./wsocket-event";
 
 export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
@@ -746,7 +746,7 @@ export function canvasPage(pageContent: HTMLElement) {
   const canvas_id = window.location.href.split("/").at(-1);
 
   const eventBus = new EventBus();
-  const wtransEvent = new WTransEvent(eventBus, canvas_id);
+  const wtransEvent = new WSocketEvent(eventBus, canvas_id);
 
   let canvas: Canvas;
   const sm: ShapeManager = {

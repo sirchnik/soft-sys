@@ -1,5 +1,5 @@
 mod axum_app;
-mod wtransport_app;
+mod wsocket_app;
 
 use tokio::task::JoinHandle;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
 
     let axum_handle: JoinHandle<()> = axum_app::create_axum().await;
 
-    let wtransport_handle: JoinHandle<()> = wtransport_app::create_wtransport().await;
+    let wtransport_handle: JoinHandle<()> = wsocket_app::create_websocket_server().await;
 
     // Wait for either server to finish (or error)
     let _ = tokio::try_join!(axum_handle, wtransport_handle)?;

@@ -5,19 +5,6 @@ const exec = util.promisify(execCall);
 const PROD = process.env.NODE_ENV === "production";
 
 (async () => {
-  let certHash = "";
-  if (process.env.CERT_FILE) {
-    const out = await exec(
-      `openssl x509 -in ${process.env.CERT_FILE} -noout -fingerprint -sha256`
-    );
-    certHash = JSON.stringify(
-      out.stdout
-        .split("=")[1]
-        .split(":")
-        .map((e) => Number(`0x${e}`))
-    );
-  }
-
   await exec(
     `
       npx -y esbuild \
@@ -27,7 +14,9 @@ const PROD = process.env.NODE_ENV === "production";
           --platform=browser \
           --target=esnext \
           --outfile=dist/index.js \
-          --define:__WT_CERT_HASH__="'${certHash}'" \
+          --define: __WS_URL__="${
+            process.env.WS_URL || "'http://localhost:8001'"
+          }" \
           --define:__BACKEND_URL__="${
             process.env.BACKEND_URL || "'http://localhost:8000'"
           }" \
