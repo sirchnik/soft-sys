@@ -22,6 +22,7 @@ import {
   Triangle,
 } from "./shapes";
 import { WSocketEvent } from "./wsocket-event";
+import { getUser } from "../auth";
 
 export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
@@ -711,7 +712,23 @@ function initEventBus(
 
 export function canvasPage(pageContent: HTMLElement) {
   document.title = "Zeichenfläche";
-  const content = `
+  const canvas_id = window.location.href.split("/").at(-1);
+  const user = getUser();
+  const readonly = user.canvases[canvas_id] === "R";
+
+  const content = readonly
+    ? `
+      <p>
+        Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
+      </p>
+      <ul class="tools" style="display:none"></ul>
+      <canvas id="drawArea" width="1024" height="500"></canvas>
+      <div class="event-stream-container">
+        <textarea id="eventStream" rows="10" cols="130"></textarea>
+        <button id="loadEventsButton" style="display:none">Load Events</button>
+      </div>
+    `
+    : `
       <p>
         Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
         ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
@@ -742,8 +759,6 @@ export function canvasPage(pageContent: HTMLElement) {
     console.error("Event stream textarea or load button not found!");
     return;
   }
-
-  const canvas_id = window.location.href.split("/").at(-1);
 
   const eventBus = new EventBus();
   const wtransEvent = new WSocketEvent(eventBus, canvas_id);

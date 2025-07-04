@@ -27,7 +27,16 @@ pub fn create_router() -> Router {
                 )
                 .nest(
                     "/canvas",
-                    Router::new().route("/", routing::post(canvas::create_canvas)),
+                    Router::new()
+                        .route("/", routing::post(canvas::create_canvas))
+                        .route(
+                            "/{canvas_id}/right",
+                            routing::post(canvas::change_canvas_right),
+                        )
+                        .route(
+                            "/{canvas_id}/rights",
+                            routing::get(canvas::list_canvas_rights),
+                        ),
                 ),
         )
         .nest_service("/dist", get_service(ServeDir::new(dist_path)))

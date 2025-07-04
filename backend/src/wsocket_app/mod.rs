@@ -205,6 +205,11 @@ async fn handle_connection_impl(
             .1
             .send((data_recv, ws_sender))
             .unwrap();
+    let right: String = right[0].try_get("right").unwrap();
+    if right == "R" {
+        return Ok(());
+    }
+
     while let Some(msg) = ws_receiver.next().await {
         let msg = match msg {
             Ok(Message::Text(text)) => text,
