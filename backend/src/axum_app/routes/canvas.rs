@@ -1,6 +1,5 @@
 use crate::axum_app::AppState;
-use crate::axum_app::auth::jwt::KEYS;
-use crate::axum_app::models::Claims;
+use crate::shared::jwt::{Claims, KEYS};
 use axum::body::Body;
 use axum::http::StatusCode;
 use axum::{Extension, http::header, response::Response};

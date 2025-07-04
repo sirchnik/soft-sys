@@ -1,4 +1,5 @@
 mod axum_app;
+mod shared;
 mod wsocket_app;
 
 use tokio::task::JoinHandle;

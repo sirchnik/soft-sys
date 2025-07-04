@@ -1,4 +1,5 @@
 use anyhow::Result;
+
 use futures::stream::SelectAll;
 use futures::stream::SplitSink;
 use futures_util::{SinkExt, StreamExt};
@@ -6,7 +7,7 @@ use log::*;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
-use std::{collections::HashMap, env, net::SocketAddr, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::{
@@ -16,8 +17,14 @@ use tokio::{
     task::JoinHandle,
 };
 use tokio_stream::wrappers::UnboundedReceiverStream;
-use tokio_tungstenite::WebSocketStream;
-use tokio_tungstenite::{accept_async, tungstenite::Message};
+use tokio_tungstenite::{
+    WebSocketStream, accept_hdr_async,
+    tungstenite::Message,
+    tungstenite::handshake::server::{Request, Response},
+};
+
+use crate::shared::jwt::Claims;
+use crate::shared::jwt::parse_jwt_from_cookies;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct FirstData {
@@ -55,36 +62,52 @@ pub async fn create_websocket_server() -> JoinHandle<()> {
     info!("WebSocket listening on: {}", addr);
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
-            let peer = stream
-                .peer_addr()
-                .expect("connected streams should have a peer address");
-            info!("Peer address: {}", peer);
             let pool = pool.clone();
             let clients = clients.clone();
-            tokio::spawn(handle_connection(peer, stream, clients, pool));
+            tokio::spawn(accept_connection(stream, clients, pool));
         }
     })
 }
 
+async fn accept_connection(stream: TcpStream, clients: CanvasClients, pool: SqlitePool) {
+    let mut jwt_outer: Option<Claims> = None;
+    let callback = |req: &Request, response: Response| {
+        let cookies = match req.headers().get("cookie").and_then(|c| c.to_str().ok()) {
+            Some(cookies) => cookies,
+            None => return Err(Response::builder().status(401).body(None).unwrap()),
+        };
+        if let Ok(jwt) = parse_jwt_from_cookies(cookies) {
+            jwt_outer = Some(jwt.claims);
+        } else {
+            return Err(Response::builder().status(401).body(None).unwrap());
+        }
+
+        Ok(response)
+    };
+    let ws_stream = accept_hdr_async(stream, callback)
+        .await
+        .expect("Error during the websocket handshake occurred");
+
+    handle_connection(ws_stream, jwt_outer.unwrap(), clients, pool).await;
+}
+
 async fn handle_connection(
-    peer: SocketAddr,
-    stream: TcpStream,
+    ws_stream: WebSocketStream<TcpStream>,
+    jwt: Claims,
     clients: CanvasClients,
     pool: SqlitePool,
 ) {
-    if let Err(e) = handle_connection_impl(peer, stream, clients, pool).await {
+    if let Err(e) = handle_connection_impl(ws_stream, jwt, clients, pool).await {
         error!("Error processing connection: {}", e);
     }
 }
 
 async fn handle_connection_impl(
-    peer: SocketAddr,
-    stream: TcpStream,
+    ws_stream: WebSocketStream<TcpStream>,
+    jwt: Claims,
     clients: CanvasClients,
     pool: SqlitePool,
 ) -> Result<()> {
-    let ws_stream = accept_async(stream).await.expect("Failed to accept");
-    info!("New WebSocket connection: {}", peer);
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     // Receive first message (should be FirstData)
     let msg = ws_receiver
@@ -93,8 +116,22 @@ async fn handle_connection_impl(
         .ok_or(anyhow::anyhow!("No init message"))??;
     let first_data: FirstData = serde_json::from_str(msg.to_text()?)?;
     let canvas_id = first_data.canvas_id.clone();
+    info!("User {} connected to canvas {}", jwt.email, canvas_id);
     // Send event history
     let mut events_coll = vec![];
+    let right = sqlx::query("SELECT right FROM user_canvas WHERE canvas_id = $1 AND user_id = $2")
+        .bind(&canvas_id)
+        .bind(&jwt.id)
+        .fetch_all(&pool)
+        .await?;
+    if right.is_empty() {
+        ws_sender
+            .send(Message::Text(
+                "{\"error\": \"You do not have access to this canvas.\"}".into(),
+            ))
+            .await?;
+        return Ok(());
+    }
     let rows = sqlx::query("SELECT events FROM canvas_events WHERE canvas_id = $1")
         .bind(&canvas_id)
         .fetch_all(&pool)
