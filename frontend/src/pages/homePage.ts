@@ -11,11 +11,35 @@ export function homePage(pageContent: HTMLElement) {
   return () => {};
 }
 
+type UserRight = {
+  email: string;
+  right: "R" | "W" | "V" | "M" | "O";
+};
+
+type CanvasData = {
+  canvas_id: string;
+  moderated: boolean;
+  rights: UserRight[];
+};
+
 export async function home(pageContent: HTMLElement) {
   const user = getUser();
   document.title = "Canvas";
 
-  // Fetch user's canvases
+  // Fetch all canvases data (moderated, rights, etc)
+  let canvasesData: CanvasData[] = [];
+  try {
+    const resp = await fetch(`${__BACKEND_URL__}/api/canvas/datas`, {
+      credentials: "include",
+    });
+    if (!resp.ok) {
+      console.error("Failed to fetch canvases data:", resp.statusText);
+      return;
+    }
+    canvasesData = await resp.json();
+  } catch (err) {
+    console.error("Failed to fetch canvases data:", err);
+  }
 
   // Render UI
   pageContent.innerHTML = `
@@ -45,7 +69,8 @@ export async function home(pageContent: HTMLElement) {
       <button type="submit" style="background: #22c55e; color: #fff; border: none; border-radius: 5px; padding: 0.5em 1.5em; font-size: 1em; font-weight: 500; cursor: pointer; transition: background 0.18s; box-shadow: 0 2px 8px rgba(34,197,94,0.09);">Create</button>
     </form>
     <div id="canvas-error" style="color:red;"></div>
-    <div id="rights-modal" style="display:none; position:fixed; top:20%; left:40%; background:#fff; border:1px solid #ccc; padding:1em; z-index:1000;"></div>
+    <!-- Modal for managing rights -->
+    <div id="rights-modal" style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff; border:1px solid #ccc; padding:1.5em 2em; z-index:1000; border-radius:10px; box-shadow:0 4px 32px rgba(0,0,0,0.18); min-width:340px; max-width:90vw; max-height:80vh; overflow-y:auto;"></div>
   `;
 
   // Handle canvas selection
@@ -92,19 +117,27 @@ export async function home(pageContent: HTMLElement) {
     btn.addEventListener("click", async (e) => {
       const id = (e.target as HTMLButtonElement).dataset.id;
       const modal = pageContent.querySelector("#rights-modal") as HTMLElement;
-      modal.innerHTML = `<div>Loading rights...</div>`;
-      modal.style.display = "block";
-      try {
-        const resp = await fetch(`${__BACKEND_URL__}/api/canvas/${id}/rights`, {
-          credentials: "include",
-        });
-        if (!resp.ok) throw new Error(await resp.text());
-        const rights = await resp.json();
-        modal.innerHTML = `
+      // Find canvas data from pre-fetched canvasesData
+      const canvasData = canvasesData.find((c) => c.canvas_id === id);
+      if (!canvasData) {
+        modal.innerHTML = `<div style=\"color:red;\">Failed to load rights: Canvas data not found</div><button id=\"close-rights-modal\">Close</button>`;
+        (modal.querySelector("#close-rights-modal") as HTMLElement).onclick =
+          () => {
+            modal.style.display = "none";
+          };
+        modal.style.display = "block";
+        return;
+      }
+      modal.innerHTML = `
           <h4>Manage Rights for Canvas ${id}</h4>
+          <div style=\"margin-bottom:2em;\">Moderated: <b>${
+            canvasData.moderated ? "Yes" : "No"
+          }</b> <button id="toggle-moderated" style="margin-left:1em; background:#f3f4f6; border:1px solid #4f8cff; color:#4f8cff; border-radius:5px; padding:0.2em 0.8em; cursor:pointer; font-size:0.95em;">${
+        canvasData.moderated ? "Disable" : "Enable"
+      }</button></div>
           <table style="width:100%; border-collapse:collapse;">
             <tr><th>User Email</th><th>Right</th><th>Change</th><th>Remove</th></tr>
-            ${rights
+            ${canvasData.rights
               .map(
                 (r) => `
                   <tr>
@@ -157,129 +190,156 @@ export async function home(pageContent: HTMLElement) {
           <button type="button" id="close-rights-modal">Close</button>
           <div id="rights-error" style="color:red;"></div>
         `;
-        (modal.querySelector("#close-rights-modal") as HTMLElement).onclick =
-          () => {
-            modal.style.display = "none";
-          };
-        // Change right forms
-        modal.querySelectorAll(".change-right-form").forEach((form) => {
-          form.addEventListener("submit", async (ev) => {
-            ev.preventDefault();
-            const email = (form as HTMLFormElement).dataset.email;
-            const right = (form as HTMLFormElement).right.value;
-            try {
-              const resp = await fetch(
-                `${__BACKEND_URL__}/api/canvas/${id}/right`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ email, right }),
-                  credentials: "include",
-                }
-              );
-              if (!resp.ok) {
-                (
-                  modal.querySelector("#rights-error") as HTMLElement
-                ).textContent = await resp.text();
-              } else {
-                (
-                  modal.querySelector("#rights-error") as HTMLElement
-                ).textContent = "Right updated.";
-                if (email === user.email) {
-                  if (["R", "W", "V", "M", "O"].includes(right)) {
-                    user.canvases[id] = right;
-                  } else {
-                    delete user.canvases[id];
-                  }
-                  home(pageContent);
-                  return;
-                }
-              }
-            } catch (err) {
-              (
-                modal.querySelector("#rights-error") as HTMLElement
-              ).textContent = "Failed to change rights.";
-            }
-          });
-        });
-        // Remove right buttons
-        modal.querySelectorAll(".remove-right-btn").forEach((btn) => {
-          btn.addEventListener("click", async (ev) => {
-            const email = (btn as HTMLButtonElement).dataset.email;
-            try {
-              const resp = await fetch(
-                `${__BACKEND_URL__}/api/canvas/${id}/right`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ email, right: "" }),
-                  credentials: "include",
-                }
-              );
-              if (!resp.ok) {
-                (
-                  modal.querySelector("#rights-error") as HTMLElement
-                ).textContent = await resp.text();
-              } else {
-                (
-                  modal.querySelector("#rights-error") as HTMLElement
-                ).textContent = "Right removed.";
-                if (email === user.email) {
-                  delete user.canvases[id];
-                  home(pageContent);
-                  return;
-                }
-                // Re-render rights table
-                btn.closest("tr")?.remove();
-              }
-            } catch (err) {
-              (
-                modal.querySelector("#rights-error") as HTMLElement
-              ).textContent = "Failed to remove right.";
-            }
-          });
-        });
-        // Add right form
-        (
-          modal.querySelector("#add-right-form") as HTMLFormElement
-        ).addEventListener("submit", async (ev) => {
-          ev.preventDefault();
-          const form = ev.target as HTMLFormElement;
-          const email = form.email.value;
-          const right = form.right.value;
+      modal.style.display = "block";
+      (modal.querySelector("#close-rights-modal") as HTMLElement).onclick =
+        () => {
+          modal.style.display = "none";
+        };
+      // Moderated toggle
+      (modal.querySelector("#toggle-moderated") as HTMLElement).onclick =
+        async () => {
           try {
             const resp = await fetch(
-              `${__BACKEND_URL__}/api/canvas/${id}/right`,
+              `${__BACKEND_URL__}/api/canvas/${id}/moderated`,
               {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, right }),
+                body: JSON.stringify({ moderated: !canvasData.moderated }),
                 credentials: "include",
               }
             );
             if (!resp.ok) {
               (
                 modal.querySelector("#rights-error") as HTMLElement
-              ).textContent = await resp.text();
+              ).textContent = resp.statusText;
             } else {
-              (
-                modal.querySelector("#rights-error") as HTMLElement
-              ).textContent = "Right added.";
-              // Optionally re-fetch rights or update table
-              home(pageContent);
+              homePage(pageContent);
             }
           } catch (err) {
             (modal.querySelector("#rights-error") as HTMLElement).textContent =
-              "Failed to add right.";
+              "Failed to update moderated status";
           }
+        };
+      modal.querySelectorAll(".change-right-form").forEach((form) => {
+        form.addEventListener("submit", async (ev) => {
+          ev.preventDefault();
+          const email = (form as HTMLFormElement).dataset.email;
+          const right = (form as HTMLFormElement).right.value;
+          await updateUserRight({
+            modal,
+            id,
+            email,
+            right,
+            user,
+            pageContent,
+            successMsg: "Right updated.",
+          });
         });
-      } catch (err) {
-        modal.innerHTML = `<div style="color:red;">Failed to load rights: ${err}</div><button id="close-rights-modal">Close</button>`;
-        (modal.querySelector("#close-rights-modal") as HTMLElement).onclick =
-          () => {
-            modal.style.display = "none";
-          };
-      }
+      });
+      // Remove right buttons
+      modal.querySelectorAll(".remove-right-btn").forEach((btn) => {
+        btn.addEventListener("click", async (ev) => {
+          const email = (btn as HTMLButtonElement).dataset.email;
+          await updateUserRight({
+            modal,
+            id,
+            email,
+            right: "",
+            user,
+            pageContent,
+            successMsg: "Right removed.",
+            remove: true,
+            btn,
+          });
+        });
+      });
+      // Add right form
+      (
+        modal.querySelector("#add-right-form") as HTMLFormElement
+      ).addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const form = ev.target as HTMLFormElement;
+        const email = form.email.value;
+        const right = form.right.value;
+        try {
+          const resp = await fetch(
+            `${__BACKEND_URL__}/api/canvas/${id}/right`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email, right }),
+              credentials: "include",
+            }
+          );
+          if (!resp.ok) {
+            (modal.querySelector("#rights-error") as HTMLElement).textContent =
+              await resp.text();
+          } else {
+            (modal.querySelector("#rights-error") as HTMLElement).textContent =
+              "Right added.";
+            // Optionally re-fetch rights or update table
+            home(pageContent);
+          }
+        } catch (err) {
+          (modal.querySelector("#rights-error") as HTMLElement).textContent =
+            "Failed to add right.";
+        }
+      });
     });
   });
+
+  // Helper to update rights and handle UI
+  async function updateUserRight({
+    modal,
+    id,
+    email,
+    right,
+    user,
+    pageContent,
+    successMsg,
+    remove = false,
+    btn = null,
+  }: {
+    modal: HTMLElement;
+    id: string;
+    email: string;
+    right: string;
+    user: any;
+    pageContent: HTMLElement;
+    successMsg: string;
+    remove?: boolean;
+    btn?: Element | null;
+  }) {
+    try {
+      const resp = await fetch(`${__BACKEND_URL__}/api/canvas/${id}/right`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, right }),
+        credentials: "include",
+      });
+      if (!resp.ok) {
+        (modal.querySelector("#rights-error") as HTMLElement).textContent =
+          await resp.text();
+      } else {
+        (modal.querySelector("#rights-error") as HTMLElement).textContent =
+          successMsg;
+        if (email === user.email) {
+          if (["R", "W", "V", "M", "O"].includes(right)) {
+            user.canvases[id] = right;
+          } else {
+            delete user.canvases[id];
+          }
+          home(pageContent);
+          return;
+        }
+        if (remove && btn) {
+          btn.closest("tr")?.remove();
+        }
+      }
+    } catch (err) {
+      (modal.querySelector("#rights-error") as HTMLElement).textContent = remove
+        ? "Failed to remove right."
+        : "Failed to change rights.";
+    }
+  }
 }

@@ -34,9 +34,10 @@ pub fn create_router() -> Router {
                             routing::post(canvas::change_canvas_right),
                         )
                         .route(
-                            "/{canvas_id}/rights",
-                            routing::get(canvas::list_canvas_rights),
-                        ),
+                            "/{canvas_id}/moderated",
+                            routing::post(canvas::set_moderated),
+                        )
+                        .route("/datas", routing::get(canvas::get_canvases_data)),
                 ),
         )
         .nest_service("/dist", get_service(ServeDir::new(dist_path)))

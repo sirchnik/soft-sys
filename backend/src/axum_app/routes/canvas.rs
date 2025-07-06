@@ -8,6 +8,7 @@ use jsonwebtoken::encode;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use std::sync::Arc;
+use tracing::*;
 
 #[derive(Deserialize)]
 pub struct ChangeRight {
@@ -19,6 +20,18 @@ pub struct ChangeRight {
 pub struct UserRight {
     pub email: String,
     pub right: String,
+}
+
+#[derive(Serialize)]
+pub struct CanvasRightsModerated {
+    pub canvas_id: String,
+    pub moderated: bool,
+    pub rights: Vec<UserRight>,
+}
+
+#[derive(Deserialize)]
+pub struct ModeratedPayload {
+    pub moderated: bool,
 }
 
 pub async fn create_canvas(
@@ -122,27 +135,74 @@ pub async fn change_canvas_right(
     Ok(Response::new(Body::from("OK")))
 }
 
-pub async fn list_canvas_rights(
+pub async fn set_moderated(
     state: Extension<Arc<AppState>>,
     claims: Claims,
     Path(canvas_id): Path<String>,
+    Json(payload): Json<ModeratedPayload>,
 ) -> Result<impl axum::response::IntoResponse, StatusCode> {
     let my_right = claims.canvases.get(&canvas_id).cloned().unwrap_or_default();
     let allowed = matches!(my_right.as_str(), "M" | "O");
     if !allowed {
         return Err(StatusCode::FORBIDDEN);
     }
-    let rows = sqlx::query("SELECT users.email, user_canvas.right FROM user_canvas JOIN users ON user_canvas.user_id = users.id WHERE user_canvas.canvas_id = $1")
+    info!(
+        "Setting moderated status for canvas {}: {}",
+        canvas_id, payload.moderated
+    );
+    let res = sqlx::query("UPDATE canvas SET moderated = $1 WHERE id = $2")
+        .bind(payload.moderated)
         .bind(&canvas_id)
-        .fetch_all(&*state.db)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let rights: Vec<UserRight> = rows
-        .into_iter()
-        .map(|row| UserRight {
-            email: row.try_get("email").unwrap_or_default(),
-            right: row.try_get("right").unwrap_or_default(),
-        })
-        .collect();
-    Ok(axum::Json(rights))
+        .execute(&*state.db)
+        .await;
+    if res.is_err() {
+        error!(
+            "Failed to update moderated status for canvas {}: {:?}",
+            canvas_id,
+            res.err()
+        );
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    Ok(Response::new(Body::from("OK")))
+}
+
+pub async fn get_canvases_data(
+    state: Extension<Arc<AppState>>,
+    claims: Claims,
+) -> Result<impl axum::response::IntoResponse, StatusCode> {
+    // Find all canvases where user is M or O
+    let mut result = Vec::new();
+    for (canvas_id, my_right) in &claims.canvases {
+        if my_right != "M" && my_right != "O" {
+            continue;
+        }
+        // Get moderated status
+        let row = sqlx::query("SELECT moderated FROM canvas WHERE id = $1")
+            .bind(canvas_id)
+            .fetch_one(&*state.db)
+            .await;
+        let moderated = match row {
+            Ok(row) => row.try_get("moderated").unwrap_or(false),
+            Err(_) => false,
+        };
+        // Get rights
+        let rows = sqlx::query("SELECT users.email, user_canvas.right FROM user_canvas JOIN users ON user_canvas.user_id = users.id WHERE user_canvas.canvas_id = $1")
+            .bind(canvas_id)
+            .fetch_all(&*state.db)
+            .await
+            .unwrap_or_default();
+        let rights: Vec<UserRight> = rows
+            .into_iter()
+            .map(|row| UserRight {
+                email: row.try_get("email").unwrap_or_default(),
+                right: row.try_get("right").unwrap_or_default(),
+            })
+            .collect();
+        result.push(CanvasRightsModerated {
+            canvas_id: canvas_id.clone(),
+            moderated,
+            rights,
+        });
+    }
+    Ok(axum::Json(result))
 }

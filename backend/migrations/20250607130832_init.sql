@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS canvas (
             || substr('AB89', 1 + (abs(random()) % 4) , 1) 
             || substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))
             )
-        )
+        ),
+    moderated BOOLEAN DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS canvas_events(
