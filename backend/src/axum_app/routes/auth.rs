@@ -1,4 +1,4 @@
-use crate::axum_app::AppState;
+use crate::axum_app::axum::AppState;
 use crate::axum_app::error::AuthError;
 use crate::shared::jwt::{Claims, KEYS};
 use argon2::password_hash::SaltString;
