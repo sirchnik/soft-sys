@@ -1,38 +1,20 @@
-use futures::stream::SplitSink;
 use log::*;
 use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
-use std::{collections::HashMap, env, sync::Arc};
+use std::env;
 use tokio::{
     net::{TcpListener, TcpStream},
-    sync::{
-        Mutex,
-        mpsc::{self, UnboundedSender},
-    },
     task::JoinHandle,
 };
 use tokio_tungstenite::{
-    WebSocketStream, accept_hdr_async,
-    tungstenite::Message,
+    accept_hdr_async,
     tungstenite::handshake::server::{Request, Response},
 };
 
-use crate::shared::jwt::parse_jwt_from_cookies;
-use crate::{shared::jwt::Claims, wsocket_app::canvas_ws::handle_canvas_connection};
-
-pub type CanvasClients = Arc<
-    Mutex<
-        HashMap<
-            String,
-            (
-                JoinHandle<()>,
-                UnboundedSender<(
-                    mpsc::UnboundedReceiver<String>,
-                    SplitSink<WebSocketStream<TcpStream>, Message>,
-                )>,
-            ),
-        >,
-    >,
->;
+use crate::{
+    shared::jwt::Claims,
+    wsocket_app::canvas_ws::{CanvasClient, handle_canvas_connection},
+};
+use crate::{shared::jwt::parse_jwt_from_cookies, wsocket_app::canvas_ws::create_client};
 
 pub async fn create_websocket_server() -> JoinHandle<()> {
     let pool = SqlitePoolOptions::new()
@@ -43,7 +25,7 @@ pub async fn create_websocket_server() -> JoinHandle<()> {
         )
         .await
         .unwrap();
-    let clients: CanvasClients = Arc::new(Mutex::new(HashMap::new()));
+    let clients: CanvasClient = create_client();
     let addr = "127.0.0.1:8001";
     let listener = TcpListener::bind(&addr).await.expect("Can't listen");
     info!("WebSocket listening on: {}", addr);
@@ -56,7 +38,7 @@ pub async fn create_websocket_server() -> JoinHandle<()> {
     })
 }
 
-async fn accept_connection(stream: TcpStream, clients: CanvasClients, pool: SqlitePool) {
+async fn accept_connection(stream: TcpStream, client: CanvasClient, pool: SqlitePool) {
     let mut jwt_outer: Option<Claims> = None;
     let callback = |req: &Request, response: Response| {
         let cookies = match req.headers().get("cookie").and_then(|c| c.to_str().ok()) {
@@ -75,5 +57,5 @@ async fn accept_connection(stream: TcpStream, clients: CanvasClients, pool: Sqli
         .await
         .expect("Error during the websocket handshake occurred");
 
-    handle_canvas_connection(ws_stream, jwt_outer.unwrap(), clients, pool).await;
+    handle_canvas_connection(ws_stream, jwt_outer.unwrap(), client, pool).await;
 }

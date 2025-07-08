@@ -14,8 +14,10 @@ export class WSocketEvent {
     this.ws.onopen = () => {
       this.ws.send(
         JSON.stringify({
-          command: "register",
+          type: "register",
           canvas_id: this.canvas_id,
+          payload: true,
+          timestamp: Date.now(),
         })
       );
     };
@@ -37,7 +39,7 @@ export class WSocketEvent {
       if (event.payload.temporary || event.payload.from_wsocket) {
         return;
       }
-      const data = JSON.stringify(event);
+      const data = JSON.stringify({ ...event, canvas_id: this.canvas_id });
       try {
         this.ws.send(data);
         console.log("send msg");
