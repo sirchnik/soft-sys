@@ -230,8 +230,6 @@ export async function home(pageContent: HTMLElement) {
             id,
             email,
             right,
-            user,
-            pageContent,
             successMsg: "Right updated.",
           });
         });
@@ -244,11 +242,8 @@ export async function home(pageContent: HTMLElement) {
             modal,
             id,
             email,
-            right: "",
-            user,
-            pageContent,
+            right: null,
             successMsg: "Right removed.",
-            remove: true,
             btn,
           });
         });
@@ -294,22 +289,20 @@ export async function home(pageContent: HTMLElement) {
     id,
     email,
     right,
-    user,
-    pageContent,
     successMsg,
-    remove = false,
     btn = null,
   }: {
     modal: HTMLElement;
     id: string;
     email: string;
-    right: string;
-    user: any;
-    pageContent: HTMLElement;
+    right: string | null;
     successMsg: string;
-    remove?: boolean;
     btn?: Element | null;
   }) {
+    const isRemove = right === null;
+    let errorMsg = isRemove
+      ? "Failed to remove right."
+      : "Failed to change rights.";
     try {
       const resp = await fetch(`${__BACKEND_URL__}/api/canvas/${id}/right`, {
         method: "POST",
@@ -317,29 +310,30 @@ export async function home(pageContent: HTMLElement) {
         body: JSON.stringify({ email, right }),
         credentials: "include",
       });
+      const rightsError = modal.querySelector("#rights-error") as HTMLElement;
       if (!resp.ok) {
-        (modal.querySelector("#rights-error") as HTMLElement).textContent =
-          await resp.text();
-      } else {
-        (modal.querySelector("#rights-error") as HTMLElement).textContent =
-          successMsg;
-        if (email === user.email) {
-          if (["R", "W", "V", "M", "O"].includes(right)) {
-            user.canvases[id] = right;
-          } else {
-            delete user.canvases[id];
-          }
-          home(pageContent);
-          return;
+        rightsError.textContent = await resp.text();
+        return;
+      }
+      rightsError.textContent = successMsg;
+      // If the current user is affected, update their rights and refresh
+      const user = getUser();
+      if (email === user.email) {
+        if (["R", "W", "V", "M", "O"].includes(right)) {
+          user.canvases[id] = right;
+        } else {
+          delete user.canvases[id];
         }
-        if (remove && btn) {
-          btn.closest("tr")?.remove();
-        }
+        home((modal.closest("#page-content") as HTMLElement) || document.body);
+        return;
+      }
+      // Remove row from table if needed
+      if (isRemove && btn) {
+        btn.closest("tr")?.remove();
       }
     } catch (err) {
-      (modal.querySelector("#rights-error") as HTMLElement).textContent = remove
-        ? "Failed to remove right."
-        : "Failed to change rights.";
+      (modal.querySelector("#rights-error") as HTMLElement).textContent =
+        errorMsg;
     }
   }
 }

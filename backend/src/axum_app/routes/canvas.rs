@@ -13,7 +13,7 @@ use tracing::*;
 #[derive(Deserialize)]
 pub struct ChangeRight {
     pub email: String,
-    pub right: String,
+    pub right: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -87,22 +87,41 @@ pub async fn change_canvas_right(
     // Check if user has permission to change rights
     let my_right = claims.canvases.get(&canvas_id).cloned().unwrap_or_default();
     let allowed = match my_right.as_str() {
-        "O" => true,                 // Owner can assign any right
-        "M" => payload.right != "O", // Moderator can't assign O
+        "O" => true,                                  // Owner can assign any right
+        "M" => payload.right.as_deref() != Some("O"), // Moderator can't assign O
         _ => false,
     };
     if !allowed {
         return Err(StatusCode::FORBIDDEN);
     }
-    // Update or insert right for the user
-    let res = sqlx::query("INSERT INTO user_canvas (user_id, canvas_id, right) VALUES ($1, $2, $3) ON CONFLICT (user_id, canvas_id) DO UPDATE SET right = $3")
-        .bind(&user_id)
-        .bind(&canvas_id)
-        .bind(&payload.right)
-        .execute(&*state.db)
-        .await;
-    if res.is_err() {
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    // Update or insert/remove right for the user
+    let remove_right = match &payload.right {
+        None => true,
+        Some(r) if r.is_empty() || r == "null" => true,
+        _ => false,
+    };
+    if remove_right {
+        // Remove right
+        let res = sqlx::query("DELETE FROM user_canvas WHERE user_id = $1 AND canvas_id = $2")
+            .bind(&user_id)
+            .bind(&canvas_id)
+            .execute(&*state.db)
+            .await;
+        if res.is_err() {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    } else {
+        // Insert or update right
+        let right = payload.right.as_ref().unwrap();
+        let res = sqlx::query("INSERT INTO user_canvas (user_id, canvas_id, right) VALUES ($1, $2, $3) ON CONFLICT (user_id, canvas_id) DO UPDATE SET right = $3")
+            .bind(&user_id)
+            .bind(&canvas_id)
+            .bind(right)
+            .execute(&*state.db)
+            .await;
+        if res.is_err() {
+            return Err(StatusCode::INTERNAL_SERVER_ERROR);
+        }
     }
     let res = state.ws_sender.send(true);
     if res.is_err() {
@@ -112,15 +131,16 @@ pub async fn change_canvas_right(
     // If user changes their own right, update JWT and set cookie
     if user_id == claims.id {
         let mut new_claims = claims;
-        if payload.right == "R"
-            || payload.right == "W"
-            || payload.right == "V"
-            || payload.right == "M"
-            || payload.right == "O"
+        let right_val = payload.right.as_deref().unwrap_or("");
+        if right_val == "R"
+            || right_val == "W"
+            || right_val == "V"
+            || right_val == "M"
+            || right_val == "O"
         {
             new_claims
                 .canvases
-                .insert(canvas_id.clone(), payload.right.clone());
+                .insert(canvas_id.clone(), right_val.to_string());
         } else {
             new_claims.canvases.remove(&canvas_id);
         }
