@@ -49,6 +49,7 @@ export class WSocketEvent {
     });
   }
 
+  // TODO kick/ disconnect
   private receiveForward(data: string) {
     let parsed: unknown;
     try {

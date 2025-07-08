@@ -1,3 +1,4 @@
+mod canvas_fwd;
 mod canvas_ws;
 mod wsocket;
 
