@@ -12,11 +12,13 @@ use tokio_tungstenite::{
 
 use crate::{
     shared::jwt::Claims,
-    wsocket_app::canvas_ws::{CanvasClient, handle_canvas_connection},
+    wsocket_app::{canvas_fwd::create_client, canvas_ws::handle_canvas_connection},
 };
-use crate::{shared::jwt::parse_jwt_from_cookies, wsocket_app::canvas_ws::create_client};
+use crate::{shared::jwt::parse_jwt_from_cookies, wsocket_app::canvas_fwd::CanvasFwd};
 
-pub async fn create_websocket_server() -> JoinHandle<()> {
+pub async fn create_websocket_server(
+    ws_receiver: tokio::sync::broadcast::Receiver<bool>,
+) -> JoinHandle<()> {
     let pool = SqlitePoolOptions::new()
         .connect(
             env::var("DATABASE_URL")
@@ -25,7 +27,7 @@ pub async fn create_websocket_server() -> JoinHandle<()> {
         )
         .await
         .unwrap();
-    let clients: CanvasClient = create_client();
+    let clients: CanvasFwd = create_client();
     let addr = "127.0.0.1:8001";
     let listener = TcpListener::bind(&addr).await.expect("Can't listen");
     info!("WebSocket listening on: {}", addr);
@@ -33,12 +35,20 @@ pub async fn create_websocket_server() -> JoinHandle<()> {
         while let Ok((stream, _)) = listener.accept().await {
             let pool = pool.clone();
             let clients = clients.clone();
-            tokio::spawn(accept_connection(stream, clients, pool));
+            let receiver = ws_receiver.resubscribe();
+            tokio::spawn(async move {
+                accept_connection(stream, clients, pool, receiver).await;
+            });
         }
     })
 }
 
-async fn accept_connection(stream: TcpStream, client: CanvasClient, pool: SqlitePool) {
+async fn accept_connection(
+    stream: TcpStream,
+    client: CanvasFwd,
+    pool: SqlitePool,
+    ws_receiver: tokio::sync::broadcast::Receiver<bool>,
+) {
     let mut jwt_outer: Option<Claims> = None;
     let callback = |req: &Request, response: Response| {
         let cookies = match req.headers().get("cookie").and_then(|c| c.to_str().ok()) {
@@ -57,5 +67,5 @@ async fn accept_connection(stream: TcpStream, client: CanvasClient, pool: Sqlite
         .await
         .expect("Error during the websocket handshake occurred");
 
-    handle_canvas_connection(ws_stream, jwt_outer.unwrap(), client, pool).await;
+    handle_canvas_connection(ws_stream, jwt_outer.unwrap(), client, pool, ws_receiver).await;
 }

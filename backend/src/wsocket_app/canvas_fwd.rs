@@ -19,7 +19,7 @@ pub struct CanvasEvent {
     pub timestamp: u64,
     pub payload: serde_json::Value,
 }
-pub type CanvasClient = Arc<
+pub type CanvasFwd = Arc<
     Mutex<(
         JoinHandle<()>,
         UnboundedSender<(
@@ -30,7 +30,7 @@ pub type CanvasClient = Arc<
     )>,
 >;
 
-pub fn create_client() -> CanvasClient {
+pub fn create_client() -> CanvasFwd {
     // this should have been multiple forwarders per canvas but thread handling was too complicated
     let (send, mut recv) = mpsc::unbounded_channel::<(
         mpsc::UnboundedReceiver<CanvasEvent>,
@@ -61,6 +61,17 @@ pub fn create_client() -> CanvasClient {
                 }
 
                 Some((event, from_id)) = select_all.next() => {
+                    if event.event_type=="disconnect" {
+                        id_canvas_map.remove(&from_id);
+                        let _ = canvas_sender_map
+                            .get_mut(event.canvas_id.as_str())
+                            .unwrap()
+                            .remove(&from_id)
+                            .unwrap()
+                            .close()
+                            .await;
+                        continue;
+                    }
                     let mut to_remove = Vec::new();
                     // Only forward to clients on the same canvas, except the sender
                     if let Some(canvas_id) = id_canvas_map.get(&from_id) {

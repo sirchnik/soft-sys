@@ -104,6 +104,11 @@ pub async fn change_canvas_right(
     if res.is_err() {
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
+    let res = state.ws_sender.send(true);
+    if res.is_err() {
+        error!("Failed to send canvas update notification: {:?}", res.err());
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    }
     // If user changes their own right, update JWT and set cookie
     if user_id == claims.id {
         let mut new_claims = claims;
@@ -163,6 +168,7 @@ pub async fn set_moderated(
         );
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
+    state.ws_sender.send(true).unwrap();
     Ok(Response::new(Body::from("OK")))
 }
 

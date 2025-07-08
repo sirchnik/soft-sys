@@ -33,9 +33,12 @@ async fn main() -> Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    let axum_handle: JoinHandle<()> = axum_app::create_axum().await;
+    // Create broadcast channel for ws communication
+    let (ws_sender, ws_receiver) = tokio::sync::broadcast::channel::<bool>(100);
 
-    let wtransport_handle: JoinHandle<()> = wsocket_app::create_websocket_server().await;
+    let axum_handle: JoinHandle<()> = axum_app::create_axum(ws_sender.clone()).await;
+
+    let wtransport_handle: JoinHandle<()> = wsocket_app::create_websocket_server(ws_receiver).await;
 
     // Wait for either server to finish (or error)
     let _ = tokio::try_join!(axum_handle, wtransport_handle)?;

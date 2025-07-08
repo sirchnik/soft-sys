@@ -8,9 +8,12 @@ use crate::axum_app::routes::create_router;
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<SqlitePool>,
+    pub ws_sender: tokio::sync::broadcast::Sender<bool>,
 }
 
-pub async fn create_axum() -> tokio::task::JoinHandle<()> {
+pub async fn create_axum(
+    ws_sender: tokio::sync::broadcast::Sender<bool>,
+) -> tokio::task::JoinHandle<()> {
     let pool = SqlitePoolOptions::new()
         .connect(
             env::var("DATABASE_URL")
@@ -19,7 +22,10 @@ pub async fn create_axum() -> tokio::task::JoinHandle<()> {
         )
         .await
         .unwrap();
-    let shared_state = Arc::new(AppState { db: Arc::new(pool) });
+    let shared_state = Arc::new(AppState {
+        db: Arc::new(pool),
+        ws_sender,
+    });
 
     let cors = CorsLayer::new()
         .allow_origin(["http://localhost:3000"].map(|s| s.parse().unwrap()))
