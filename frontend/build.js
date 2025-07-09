@@ -14,7 +14,7 @@ const PROD = process.env.NODE_ENV === "production";
           --platform=browser \
           --target=esnext \
           --outfile=dist/index.js \
-          --define:__WS_URL__="${
+          --define:__BACKEND_WS_URL__="${
             process.env.WS_URL || "'http://localhost:8001'"
           }" \
           --define:__BACKEND_URL__="${

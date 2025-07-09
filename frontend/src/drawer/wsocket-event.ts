@@ -3,8 +3,14 @@ import { DomainEvent, EventBus, EventHandler } from "./events";
 
 export class WSocketEvent {
   private readonly ws: WebSocket;
-  constructor(private readonly eventBus: EventBus, private readonly canvas_id) {
-    this.ws = new WebSocket("ws://localhost:8001");
+  private errorDiv: HTMLElement | null;
+  constructor(
+    private readonly eventBus: EventBus,
+    private readonly canvas_id,
+    errorDiv?: HTMLElement
+  ) {
+    this.ws = new WebSocket(__BACKEND_WS_URL__);
+    this.errorDiv = errorDiv || null;
   }
 
   public async disconnect(): Promise<void> {
@@ -27,6 +33,9 @@ export class WSocketEvent {
       console.log("WebSocket connection closed");
     };
     this.ws.onerror = (err) => {
+      this.showWSError(
+        "WebSocket error: " + (err instanceof Event ? err.type : String(err))
+      );
       console.error("WebSocket error:", err);
     };
     this.ws.onmessage = (event) => {
@@ -36,10 +45,23 @@ export class WSocketEvent {
     return Promise.resolve();
   }
 
+  private showWSError(message: string) {
+    this.errorDiv.textContent = message;
+    this.errorDiv.style.display = "block";
+    setTimeout(() => {
+      this.errorDiv.style.display = "none";
+    }, 5000);
+  }
+
   private sendForward(): void {
-    this.eventBus.subscribeToAll((event: DomainEvent) => {
+    this.eventBus.subscribeToAll(async (event: DomainEvent) => {
       const wsEvent: WSDomainEvent = event as WSDomainEvent;
       if (wsEvent.payload.temporary || wsEvent.payload.from_wsocket) {
+        return;
+      }
+      if (this.ws.readyState !== WebSocket.OPEN) {
+        this.showWSError("WebSocket is not open. Unable to send message.");
+        console.error("WebSocket is not open. Unable to send message.");
         return;
       }
       const data = JSON.stringify({ ...event, canvas_id: this.canvas_id });
@@ -47,6 +69,10 @@ export class WSocketEvent {
         this.ws.send(data);
         console.log("send msg");
       } catch (error) {
+        this.showWSError(
+          "WebSocket send error: " +
+            (error instanceof Error ? error.message : String(error))
+        );
         console.error("Error sending to WebSocket:", error);
       }
     });

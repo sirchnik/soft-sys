@@ -4,6 +4,7 @@ services:
     restart: always
     environment:
       BIND_TO: "0.0.0.0:8000"
+      BIND_TO_WS: "0.0.0.0:8001"
       JWT_SECRET: "your_jwt_secret_here"
     ports:
       - 8000:8000

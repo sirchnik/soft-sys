@@ -29,9 +29,9 @@ pub async fn create_websocket_server(
         .await
         .unwrap();
     let clients: CanvasFwd = create_client();
-    let addr = "127.0.0.1:8001";
-    let listener = TcpListener::bind(&addr).await.expect("Can't listen");
-    info!("WebSocket listening on: {}", addr);
+    let bind_to = env::var("BIND_TO_WS").unwrap_or("0.0.0.0:8001".to_string());
+    let listener = TcpListener::bind(&bind_to).await.expect("Can't listen");
+    info!("WebSocket listening on: {}", bind_to);
     tokio::spawn(async move {
         while let Ok((stream, _)) = listener.accept().await {
             let pool = pool.clone();

@@ -798,6 +798,8 @@ export function canvasPage(pageContent: HTMLElement) {
   const instructionTextId = "instructionText";
   const moderatedStatusHtml = `<div id="${moderatedStatusId}" style="color: red; font-weight: bold; margin-bottom: 8px;"></div>`;
   const instructionTextHtml = `<div id="${instructionTextId}" style="margin-bottom: 8px;"></div>`;
+  // Add a dedicated error div for websocket errors
+  const wsErrorDivId = "ws-error-div";
 
   const content =
     moderatedStatusHtml +
@@ -805,6 +807,7 @@ export function canvasPage(pageContent: HTMLElement) {
     `
       <ul class="tools"></ul>
       <canvas id="drawArea" width="1024" height="500"></canvas>
+      <div id="${wsErrorDivId}" style="display:none; color: red; font-weight:bold;"></div>
       <div class="event-stream-container">
         <textarea id="eventStream" rows="10" cols="130"></textarea>
         <button id="loadEventsButton"${
@@ -840,9 +843,11 @@ export function canvasPage(pageContent: HTMLElement) {
   const loadEventsButton = document.getElementById(
     "loadEventsButton"
   ) as HTMLButtonElement;
+  // Get the error div element for websocket errors
+  const wsErrorDiv = document.getElementById(wsErrorDivId) as HTMLElement;
 
   const eventBus = new EventBus();
-  const wtransEvent = new WSocketEvent(eventBus, canvas_id);
+  const wtransEvent = new WSocketEvent(eventBus, canvas_id, wsErrorDiv);
 
   let canvas: Canvas;
   const sm: ShapeManager = {
