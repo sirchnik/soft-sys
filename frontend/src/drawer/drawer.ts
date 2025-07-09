@@ -311,13 +311,16 @@ class SelectionManager {
 class ToolArea {
   private selectedShape: CanvasTool = undefined;
   private selectionMode = false;
+  private domElms: HTMLElement[] = [];
+  private menuElm: HTMLUListElement;
 
   constructor(
     shapesSelector: CanvasTool[],
     menue: Element,
     private selectionManager: SelectionManager
   ) {
-    const domElms = [];
+    this.menuElm = menue as HTMLUListElement;
+    const domElms = this.domElms;
     shapesSelector.forEach((sl) => {
       const domSelElement = document.createElement("li");
       domSelElement.innerText = sl.label;
@@ -355,6 +358,26 @@ class ToolArea {
       this.selectedShape = undefined;
       this.selectionMode = true;
     });
+  }
+
+  setDisabled(disabled: boolean) {
+    if (disabled) {
+      this.menuElm.setAttribute("disabled", "true");
+      this.selectedShape = undefined;
+      this.selectionMode = false;
+      this.selectionManager.clearSelection();
+      this.domElms.forEach((li) => {
+        li.classList.remove("marked");
+        li.style.pointerEvents = "none";
+        li.style.opacity = "0.5";
+      });
+    } else {
+      this.menuElm.removeAttribute("disabled");
+      this.domElms.forEach((li) => {
+        li.style.pointerEvents = "auto";
+        li.style.opacity = "1";
+      });
+    }
   }
 
   selectionModeActive() {
@@ -638,7 +661,8 @@ function initEventBus(
   eventStreamTextArea: HTMLTextAreaElement,
   sm: ShapeManager,
   moderatedStatusElem: HTMLElement,
-  instructionTextElem: HTMLElement
+  instructionTextElem: HTMLElement,
+  toolArea?: ToolArea
 ) {
   eventBus.subscribeToAll((event: DomainEvent) => {
     if (
@@ -720,6 +744,8 @@ function initEventBus(
             Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
           </p>
         `;
+      // Disable toolbar
+      if (toolArea) toolArea.setDisabled(true);
       return;
     }
     if (event.payload.right === null) {
@@ -734,6 +760,8 @@ function initEventBus(
             Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
           </p>
         `;
+      // Disable toolbar
+      if (toolArea) toolArea.setDisabled(true);
     } else {
       moderatedStatusElem.textContent = "";
       instructionTextElem.innerHTML = `
@@ -746,6 +774,8 @@ function initEventBus(
           </p>
           <p>Mit shift kann man die Shapes verschieben.</p>
         `;
+      // Enable toolbar
+      if (toolArea) toolArea.setDisabled(false);
     }
   });
 }
@@ -754,7 +784,9 @@ export function canvasPage(pageContent: HTMLElement) {
   document.title = "Zeichenfläche";
   const canvas_id = window.location.href.split("/").at(-1);
   const user = getUser();
-  const readonly = user.canvases[canvas_id] === "R";
+  const readonly = user.canvases.find(
+    (c) => c.canvas_id === canvas_id && c.right === "R"
+  );
 
   // Add moderated status and instruction elements
   const moderatedStatusId = "moderatedStatus";
@@ -781,23 +813,16 @@ export function canvasPage(pageContent: HTMLElement) {
   const content =
     moderatedStatusHtml +
     instructionTextHtml +
-    (readonly
-      ? `
-      <ul class="tools" style="display:none"></ul>
-      <canvas id="drawArea" width="1024" height="500"></canvas>
-      <div class="event-stream-container">
-        <textarea id="eventStream" rows="10" cols="130"></textarea>
-        <button id="loadEventsButton" style="display:none">Load Events</button>
-      </div>
     `
-      : `
       <ul class="tools"></ul>
       <canvas id="drawArea" width="1024" height="500"></canvas>
       <div class="event-stream-container">
         <textarea id="eventStream" rows="10" cols="130"></textarea>
-        <button id="loadEventsButton">Load Events</button>
+        <button id="loadEventsButton"${
+          readonly ? ' style="display:none"' : ""
+        }>Load Events</button>
       </div>
-    `);
+    `;
   pageContent.innerHTML = content;
 
   // Set initial instruction text
@@ -809,18 +834,13 @@ export function canvasPage(pageContent: HTMLElement) {
     : editInstruction;
 
   const canvasDomElm = document.getElementById("drawArea") as HTMLCanvasElement;
-  const menu = document.getElementsByClassName("tools")[0];
+  const menu = document.getElementsByClassName("tools")[0] as HTMLUListElement;
   const eventStreamTextArea = document.getElementById(
     "eventStream"
   ) as HTMLTextAreaElement;
   const loadEventsButton = document.getElementById(
     "loadEventsButton"
   ) as HTMLButtonElement;
-
-  if (!eventStreamTextArea || !loadEventsButton) {
-    console.error("Event stream textarea or load button not found!");
-    return;
-  }
 
   const eventBus = new EventBus();
   const wtransEvent = new WSocketEvent(eventBus, canvas_id);
@@ -871,6 +891,11 @@ export function canvasPage(pageContent: HTMLElement) {
   );
   canvas = new Canvas(canvasDomElm, toolArea);
 
+  // Disable toolbar if readonly
+  if (readonly) {
+    toolArea.setDisabled(true);
+  }
+
   // --- Event Handlers ---
   const moderatedStatusElem = document.getElementById(
     moderatedStatusId
@@ -881,7 +906,8 @@ export function canvasPage(pageContent: HTMLElement) {
     eventStreamTextArea,
     sm,
     moderatedStatusElem,
-    instructionTextElem
+    instructionTextElem,
+    toolArea
   );
   initEventLog(loadEventsButton, eventStreamTextArea, eventBus, canvas, sm);
 

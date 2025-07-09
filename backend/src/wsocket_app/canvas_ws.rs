@@ -184,6 +184,10 @@ async fn handle_connection_impl(
                 }
             }
             msg = ws_receiver.next() => {
+                if right == "W" && moderated {
+                    // Writer, but canvas is moderated: block
+                    continue;
+                }
                 // Only check rights/moderation if more than 1min has passed
                 let msg = match msg {
                     Some(Ok(Message::Text(text))) => text,
@@ -200,10 +204,6 @@ async fn handle_connection_impl(
                 });
                 for str_data in str_datas {
                     // Enforce moderation logic
-                    if right == "W" && moderated {
-                        // Writer, but canvas is moderated: block
-                        continue;
-                    }
                     // V, M, O can always write
                     handle_cmd(str_data).await;
                 }

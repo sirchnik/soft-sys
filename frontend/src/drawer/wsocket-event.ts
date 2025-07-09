@@ -50,7 +50,6 @@ export class WSocketEvent {
     });
   }
 
-  // TODO kick/ disconnect
   private receiveForward(data: string) {
     let parsed: unknown;
     try {
@@ -58,7 +57,7 @@ export class WSocketEvent {
     } catch (error) {
       console.error("Error parsing received data:", data, error);
     }
-    console.log("Received data:", parsed);
+    // console.log("Received data:", parsed);
     const events: DomainEvent[] = Array.isArray(parsed)
       ? parsed
           .map((e) => {

@@ -14,7 +14,6 @@ use axum::{
 use jsonwebtoken::encode;
 use serde::Deserialize;
 use sqlx::Row;
-use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Deserialize)]
@@ -81,23 +80,9 @@ pub async fn login(
         .verify_password(payload.password.as_bytes(), &parsed_hash)
         .map_err(|_| AuthError::WrongCredentials)?;
 
-    let rows = sqlx::query("SELECT canvas_id, right FROM user_canvas WHERE user_id = $1")
-        .bind(&user_id)
-        .fetch_all(&*state.db)
-        .await
-        .unwrap(); // 500 if fail
-
-    let mut canvases = HashMap::new();
-    for row in rows {
-        let canvas_id: String = row.try_get("canvas_id").unwrap();
-        let right: String = row.try_get("right").unwrap();
-        canvases.insert(canvas_id, right);
-    }
-
     let claims = Claims {
         email: payload.email.clone(),
         exp: 2000000000,
-        canvases,
         display_name: display_name.clone(),
         id: user_id.clone(),
     };

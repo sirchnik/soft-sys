@@ -11,57 +11,40 @@ export function homePage(pageContent: HTMLElement) {
   return () => {};
 }
 
-type UserRight = {
-  email: string;
-  right: "R" | "W" | "V" | "M" | "O";
-};
-
-type CanvasData = {
-  canvas_id: string;
-  moderated: boolean;
-  rights: UserRight[];
-};
-
 export async function home(pageContent: HTMLElement) {
   const user = getUser();
   document.title = "Canvas";
 
-  // Fetch all canvases data (moderated, rights, etc)
-  let canvasesData: CanvasData[] = [];
-  try {
-    const resp = await fetch(`${__BACKEND_URL__}/api/canvas/datas`, {
-      credentials: "include",
-    });
-    if (!resp.ok) {
-      console.error("Failed to fetch canvases data:", resp.statusText);
-      return;
-    }
-    canvasesData = await resp.json();
-  } catch (err) {
-    console.error("Failed to fetch canvases data:", err);
-  }
+  // Use user.canvases directly, do not fetch canvases data
+  const canvasesData = user.canvases;
 
   // Render UI
   pageContent.innerHTML = `
     <h2>Select a Canvas</h2>
     <div id="canvas-list" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.2em; padding: 0.5em 0;">
-      ${Object.entries(user?.canvases)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(
-          ([id, right]) =>
-            `<div class="canvas-card" style="background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(79,140,255,0.08); padding: 1.2em 1.5em; width: 100%; min-height: 150px; display: flex; flex-direction: column; align-items: flex-start; gap: 0.7em; border: 1.5px solid #e3edff; box-sizing: border-box;">
-              <div style="font-size: 1.13em; font-weight: 600; color: #23272f;">${id}</div>
-              <div style="font-size: 0.98em; color: #4f8cff; font-weight: 500;">Right: ${right}</div>
+      ${canvasesData
+        .sort((a, b) => a.canvas_id.localeCompare(b.canvas_id))
+        .map((canvas) => {
+          // Find current user's right for this canvas
+          return `<div class="canvas-card" style="background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(79,140,255,0.08); padding: 1.2em 1.5em; width: 100%; min-height: 150px; display: flex; flex-direction: column; align-items: flex-start; gap: 0.7em; border: 1.5px solid #e3edff; box-sizing: border-box;">
+              <div style="font-size: 1.13em; font-weight: 600; color: #23272f;">${
+                canvas.canvas_id
+              }</div>
+              <div style="font-size: 0.98em; color: #4f8cff; font-weight: 500;">Right: ${
+                canvas.right
+              }</div>
               <div style="display: flex; gap: 0.7em;">
-                <button data-id="${id}" class="open-canvas-btn" style="background: #4f8cff; color: #fff; border: none; border-radius: 5px; padding: 0.45em 1.2em; font-size: 1em; font-weight: 500; cursor: pointer; transition: background 0.18s; box-shadow: 0 2px 8px rgba(79,140,255,0.09);">Open</button>
+                <button data-id="${
+                  canvas.canvas_id
+                }" class="open-canvas-btn" style="background: #4f8cff; color: #fff; border: none; border-radius: 5px; padding: 0.45em 1.2em; font-size: 1em; font-weight: 500; cursor: pointer; transition: background 0.18s; box-shadow: 0 2px 8px rgba(79,140,255,0.09);">Open</button>
                 ${
-                  right === "M" || right === "O"
-                    ? `<button class="manage-rights" data-id="${id}" style="background: #fff; color: #4f8cff; border: 1.5px solid #4f8cff; border-radius: 5px; padding: 0.45em 1.2em; font-size: 1em; font-weight: 500; cursor: pointer; transition: background 0.18s, color 0.18s;">Manage Rights</button>`
+                  canvas.right === "M" || canvas.right === "O"
+                    ? `<button class="manage-rights" data-id="${canvas.canvas_id}" style="background: #fff; color: #4f8cff; border: 1.5px solid #4f8cff; border-radius: 5px; padding: 0.45em 1.2em; font-size: 1em; font-weight: 500; cursor: pointer; transition: background 0.18s, color 0.18s;">Manage Rights</button>`
                     : ""
                 }
               </div>
-            </div>`
-        )
+            </div>`;
+        })
         .join("")}
     </div>
     <h3 style="margin-top:2em;">Or Create a New Canvas</h3>
@@ -98,7 +81,8 @@ export async function home(pageContent: HTMLElement) {
       if (resp.ok) {
         const newCanvas = await resp.json();
         console.log("New canvas created:", newCanvas);
-        user.canvases[newCanvas.id] = "O";
+        // Refetch user or push to user.canvases if needed
+        await import("../auth").then((m) => m.fetchUser());
         navigateTo(`/canvas/${newCanvas.id}`);
       } else {
         const err = await resp.text();
@@ -117,7 +101,7 @@ export async function home(pageContent: HTMLElement) {
     btn.addEventListener("click", async (e) => {
       const id = (e.target as HTMLButtonElement).dataset.id;
       const modal = pageContent.querySelector("#rights-modal") as HTMLElement;
-      // Find canvas data from pre-fetched canvasesData
+      // Find canvas data from user.canvases
       const canvasData = canvasesData.find((c) => c.canvas_id === id);
       if (!canvasData) {
         modal.innerHTML = `<div style=\"color:red;\">Failed to load rights: Canvas data not found</div><button id=\"close-rights-modal\">Close</button>`;
@@ -213,7 +197,8 @@ export async function home(pageContent: HTMLElement) {
                 modal.querySelector("#rights-error") as HTMLElement
               ).textContent = resp.statusText;
             } else {
-              homePage(pageContent);
+              await import("../auth").then((m) => m.fetchUser());
+              home(pageContent);
             }
           } catch (err) {
             (modal.querySelector("#rights-error") as HTMLElement).textContent =
@@ -272,7 +257,7 @@ export async function home(pageContent: HTMLElement) {
           } else {
             (modal.querySelector("#rights-error") as HTMLElement).textContent =
               "Right added.";
-            // Optionally re-fetch rights or update table
+            await import("../auth").then((m) => m.fetchUser());
             home(pageContent);
           }
         } catch (err) {
@@ -316,21 +301,9 @@ export async function home(pageContent: HTMLElement) {
         return;
       }
       rightsError.textContent = successMsg;
-      // If the current user is affected, update their rights and refresh
-      const user = getUser();
-      if (email === user.email) {
-        if (["R", "W", "V", "M", "O"].includes(right)) {
-          user.canvases[id] = right;
-        } else {
-          delete user.canvases[id];
-        }
-        home((modal.closest("#page-content") as HTMLElement) || document.body);
-        return;
-      }
-      // Remove row from table if needed
-      if (isRemove && btn) {
-        btn.closest("tr")?.remove();
-      }
+      // Always refetch user and rerender
+      await import("../auth").then((m) => m.fetchUser());
+      home((modal.closest("#page-content") as HTMLElement) || document.body);
     } catch (err) {
       (modal.querySelector("#rights-error") as HTMLElement).textContent =
         errorMsg;
