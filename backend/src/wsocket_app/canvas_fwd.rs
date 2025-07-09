@@ -61,6 +61,18 @@ pub fn create_client() -> CanvasFwd {
                 }
 
                 Some((event, from_id)) = select_all.next() => {
+                    if event.event_type == "PING" {
+                        // Just send the event, do not close
+                        if let Some(sender_map) = canvas_sender_map.get_mut(event.canvas_id.as_str()) {
+                            if let Some(ws_sender) = sender_map.get_mut(&from_id) {
+                                ws_sender
+                                    .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
+                        continue;
+                    }
                     if event.event_type=="RIGHTS_CHANGED" {
                         // Only close connection if user lost all rights (right is null or missing)
                         if event.payload.get("right").is_none() || event.payload.get("right").unwrap().is_null() {

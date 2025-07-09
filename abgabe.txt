@@ -16,15 +16,22 @@ cd soft-sys
 
 # # Kommentare zu den einzelnen Aufgaben:
 #
-# ## A5.4/5.3
-# In der Aufgabe sollten die Rechte der User auf Canvas in JWT gespeichert werden.
-# bis 9ef18f9fd92c66135a451489499c637f4351461f war das noch eingebaut.
-# Nach Rückfrage bei Ihnen hab ich mich aber entschieden, die Rechte nicht mehr zu speichern,
-# sondern per API abzufragen.
-# Das hat den Vorteil, dass Bearbeitung der Canvas Rechten nicht erst nach neuer Login
-# oder Token-Generierung sichtbar wird.
-# Das hat den Nachteil, dass die API-Calls mit Datenbankzugriff langsamer sind.
-# Für die Funktionalität der Anwendung ist aber Bearbeitung essentiell.
-
+# ## 5.3
+# - In der Aufgabe sollten die Rechte der User auf Canvas in JWT gespeichert werden.
+#   bis 9ef18f9fd92c66135a451489499c637f4351461f war das noch eingebaut.
+#   Nach Rückfrage bei Ihnen hab ich mich aber entschieden, die Rechte nicht mehr zu speichern,
+#   sondern per API abzufragen.
+#   Das hat den Vorteil, dass Bearbeitung der Canvas Rechten nicht erst nach neuer Login
+#   oder Token-Generierung sichtbar wird.
+#   Das hat den Nachteil, dass die API-Calls mit Datenbankzugriff langsamer sind.
+#   Für die Funktionalität der Anwendung ist aber Bearbeitung essentiell.
+#
+# ## 5.4
+# - Der Satz `V: Er hat Schreibenderechte, und kann dies auch bearbeiten, falls die im Zustand “moderiert” ist,`
+#   ist nicht ganz klar.
+#   Ich habe `V` jetzt einfach unbedingte Schreibenderechte gegeben. Hätte auch einfach anders sein können.
+#
+# ## A5.5
+#
 
 git checkout eca86793ae263d52399b53ff70f0dd7ab1b0d9bd

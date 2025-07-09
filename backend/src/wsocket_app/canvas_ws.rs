@@ -3,6 +3,7 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use sqlx::Row;
 use sqlx::SqlitePool;
+use tokio::time::{self, Duration, Instant};
 use tokio::{
     net::TcpStream,
     sync::{broadcast, mpsc},
@@ -23,6 +24,7 @@ pub async fn handle_canvas_connection(
     if let Err(e) = handle_connection_impl(ws_stream, jwt, client, pool, rights_rx).await {
         error!("Error processing connection: {}", e);
     }
+    info!("WebSocket connection closed");
 }
 
 async fn handle_connection_impl(
@@ -61,8 +63,6 @@ async fn handle_connection_impl(
 
     let right: String = canvas_data.try_get("right")?;
     let initial_moderated: bool = canvas_data.try_get("moderated")?;
-    // Set initial value for watch receiver if needed
-    // rights_tx.send((right.clone(), initial_moderated)).unwrap();
 
     if first_cmd.event_type == "register" && first_cmd.payload.as_bool() == Some(true) {
         info!("User {} connected to canvas {}", jwt.email, canvas_id);
@@ -91,7 +91,7 @@ async fn handle_connection_impl(
         .await
         .1
         .send((data_recv, ws_sender, canvas_id.clone()))
-        .unwrap();
+        .map_err(|_| anyhow::anyhow!("Failed to register sender for canvas {}", canvas_id))?;
 
     let mut right = right;
     let mut moderated = initial_moderated;
@@ -130,8 +130,29 @@ async fn handle_connection_impl(
     }
 
     let mut rights_rx = rights_rx.resubscribe();
+
+    let mut last_pong = Instant::now();
+    let mut ping_interval = time::interval(Duration::from_secs(20));
+
     loop {
         tokio::select! {
+            _ = ping_interval.tick() => {
+                // Send ping as a CanvasEvent through data_send
+                let ping_event = CanvasEvent {
+                    event_type: "PING".into(),
+                    canvas_id: canvas_id.clone(),
+                    timestamp: 0,
+                    payload: serde_json::json!({}),
+                };
+                if let Err(e) = data_send.send(ping_event) {
+                    error!("Failed to send ping event: {}", e);
+                    break;
+                }
+                if last_pong.elapsed() > Duration::from_secs(30) {
+                    error!("No pong received in time. Closing connection.");
+                    break;
+                }
+            }
             changed = rights_rx.recv() => {
                 if let Ok(event) = changed {
                     match event {
@@ -161,7 +182,7 @@ async fn handle_connection_impl(
                                 if let Err(e) = res {
                                     error!("Error sending rights_changed event: {}", e);
                                 }
-                                // break;
+                                break;
                             }
                         },
                         crate::shared::CanvasDataEvent::ModeratedChanged(ref cid, new_moderated) if *cid == canvas_id => {
@@ -185,7 +206,6 @@ async fn handle_connection_impl(
                     // Writer, but canvas is moderated: block
                     continue;
                 }
-                // Only check rights/moderation if more than 1min has passed
                 let msg = match msg {
                     Some(Ok(Message::Text(text))) => text,
                     Some(Ok(_)) => continue,
@@ -195,14 +215,19 @@ async fn handle_connection_impl(
                     }
                     None => break,
                 };
-                let str_datas = msg.split('\n').filter(|s| !s.is_empty()).map(|s| {
+                let datas = msg.split('\n').filter(|s| !s.is_empty()).map(|s| {
                     let event: CanvasEvent = serde_json::from_str(s).unwrap();
                     event
                 });
-                for str_data in str_datas {
+                for data in datas {
+                    if data.event_type == "PONG" {
+                        // Handle pong
+                        last_pong = Instant::now();
+                        continue;
+                    }
                     // Enforce moderation logic
                     // V, M, O can always write
-                    handle_cmd(str_data).await;
+                    handle_cmd(data).await;
                 }
             }
         }

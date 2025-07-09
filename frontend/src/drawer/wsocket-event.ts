@@ -53,13 +53,23 @@ export class WSocketEvent {
   }
 
   private receiveForward(data: string) {
-    let parsed: unknown;
+    let parsed: any;
     try {
       parsed = JSON.parse(data);
     } catch (error) {
       console.error("Error parsing received data:", data, error);
     }
-    // console.log("Received data:", parsed);
+    if (parsed.type === "PING") {
+      this.ws.send(
+        JSON.stringify({
+          type: "PONG",
+          timestamp: 0,
+          canvas_id: this.canvas_id,
+          payload: {},
+        })
+      );
+      return;
+    }
     const events: WSDomainEvent[] = Array.isArray(parsed)
       ? parsed
           .map((e) => {
