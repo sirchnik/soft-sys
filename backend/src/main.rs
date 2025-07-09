@@ -11,7 +11,9 @@ use std::env;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    dotenv::dotenv().unwrap();
+    if let Err(e) = dotenv::dotenv() {
+        tracing::warn!("Failed to load .env file: {}", e);
+    }
 
     let required_envs = ["JWT_SECRET"];
     let missing_envs: Vec<&str> = required_envs

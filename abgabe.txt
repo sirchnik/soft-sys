@@ -35,3 +35,15 @@ cd soft-sys
 #
 
 git checkout eca86793ae263d52399b53ff70f0dd7ab1b0d9bd
+
+docker compose up -d --build
+xdg-open http://localhost:8000
+
+# oder
+
+cd frontend
+pnpm install && pnpm dev &
+
+cd ../backend
+cargo run &
+

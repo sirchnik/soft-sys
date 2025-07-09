@@ -28,7 +28,7 @@ pub async fn create_axum(
     });
 
     let cors = CorsLayer::new()
-        .allow_origin(["http://localhost:3000"].map(|s| s.parse().unwrap()))
+        .allow_origin(["http://localhost:3000"].map(|s| s.parse().unwrap())) // local development
         .allow_methods([
             Method::GET,
             Method::POST,

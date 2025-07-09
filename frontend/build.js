@@ -15,10 +15,10 @@ const PROD = process.env.NODE_ENV === "production";
           --target=esnext \
           --outfile=dist/index.js \
           --define:__BACKEND_WS_URL__="${
-            process.env.WS_URL || "'http://localhost:8001'"
+            `'${process.env.BACKEND_WS_URL}'` || "'http://localhost:8001'"
           }" \
           --define:__BACKEND_URL__="${
-            process.env.BACKEND_URL || "'http://localhost:8000'"
+            `'${process.env.BACKEND_URL}'` || "'http://localhost:8000'"
           }" \
           ${PROD ? "" : "--watch"} \
           src/index.ts 

@@ -6,5 +6,7 @@ services:
       BIND_TO: "0.0.0.0:8000"
       BIND_TO_WS: "0.0.0.0:8001"
       JWT_SECRET: "your_jwt_secret_here"
+      # DATABASE_URL: "sqlite:///app/db/drawer.db"
     ports:
       - 8000:8000
+      - 8001:8001
