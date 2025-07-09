@@ -10,7 +10,7 @@ export abstract class AbstractFactory<T extends Shape> implements CanvasTool {
 
   constructor(private readonly eventBus: EventBus) {}
 
-  abstract createShape(from: Point2D, to: Point2D, id?: number): T;
+  abstract createShape(from: Point2D, to: Point2D, id?: string): T;
 
   handleMouseDown(e: MouseEvent) {
     const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
@@ -69,7 +69,7 @@ export class LineFactory extends AbstractFactory<Line> implements CanvasTool {
     super(eventBus);
   }
 
-  createShape(from: Point2D, to: Point2D, id?: number): Line {
+  createShape(from: Point2D, to: Point2D, id?: string): Line {
     return new Line(from, to, { id });
   }
 }
@@ -83,7 +83,7 @@ export class CircleFactory
     super(eventBus);
   }
 
-  createShape(from: Point2D, to: Point2D, id?: number): Circle {
+  createShape(from: Point2D, to: Point2D, id?: string): Circle {
     return new Circle(from, CircleFactory.computeRadius(from, to.x, to.y), {
       id,
     });
@@ -104,7 +104,7 @@ export class RectangleFactory
     super(eventBus);
   }
 
-  createShape(from: Point2D, to: Point2D, id?: number): Rectangle {
+  createShape(from: Point2D, to: Point2D, id?: string): Rectangle {
     return new Rectangle(from, to, { id });
   }
 }

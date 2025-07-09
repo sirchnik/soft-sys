@@ -37,7 +37,8 @@ export class WSocketEvent {
 
   private sendForward(): void {
     this.eventBus.subscribeToAll((event: DomainEvent) => {
-      if (event.payload.temporary || event.payload.from_wsocket) {
+      const wsEvent: WSDomainEvent = event as WSDomainEvent;
+      if (wsEvent.payload.temporary || wsEvent.payload.from_wsocket) {
         return;
       }
       const data = JSON.stringify({ ...event, canvas_id: this.canvas_id });
@@ -58,7 +59,7 @@ export class WSocketEvent {
       console.error("Error parsing received data:", data, error);
     }
     // console.log("Received data:", parsed);
-    const events: DomainEvent[] = Array.isArray(parsed)
+    const events: WSDomainEvent[] = Array.isArray(parsed)
       ? parsed
           .map((e) => {
             try {
@@ -78,7 +79,17 @@ export class WSocketEvent {
       this.eventBus.dispatch({
         ...event,
         payload: { ...event.payload, from_wsocket: true },
-      });
+      } as DomainEvent);
     });
   }
 }
+
+type WSDomainEvent = {
+  type: string;
+  payload: Record<string, unknown> & {
+    from_wsocket?: boolean;
+    temporary?: boolean;
+  };
+  canvas_id: string;
+  timestamp?: number;
+};
