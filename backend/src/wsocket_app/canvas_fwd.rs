@@ -11,7 +11,7 @@ use tokio::{net::TcpStream, sync::mpsc};
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct CanvasEvent {
     #[serde(rename = "type")]
     pub event_type: String,
@@ -61,18 +61,31 @@ pub fn create_client() -> CanvasFwd {
                 }
 
                 Some((event, from_id)) = select_all.next() => {
-                    if event.event_type=="RIGHTS_CHANGED" { // if a client sends RIGHTS_CHANGED, they only get it back
-                        id_canvas_map.remove(&from_id);
-                        let mut ws_sender = canvas_sender_map
-                            .get_mut(event.canvas_id.as_str())
-                            .unwrap()
-                            .remove(&from_id)
-                            .unwrap();
-                        ws_sender
-                            .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
-                            .await
-                            .unwrap();
-                        ws_sender.close().await.unwrap();
+                    if event.event_type=="RIGHTS_CHANGED" {
+                        // Only close connection if user lost all rights (right is null or missing)
+                        if event.payload.get("right").is_none() || event.payload.get("right").unwrap().is_null() {
+                            id_canvas_map.remove(&from_id);
+                            let mut ws_sender = canvas_sender_map
+                                .get_mut(event.canvas_id.as_str())
+                                .unwrap()
+                                .remove(&from_id)
+                                .unwrap();
+                            ws_sender
+                                .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                                .await
+                                .unwrap();
+                            ws_sender.close().await.unwrap();
+                            continue;
+                        }
+                        // Just send the event, do not close
+                        if let Some(sender_map) = canvas_sender_map.get_mut(event.canvas_id.as_str()) {
+                            if let Some(ws_sender) = sender_map.get_mut(&from_id) {
+                                ws_sender
+                                    .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                                    .await
+                                    .unwrap();
+                            }
+                        }
                         continue;
                     }
                     let mut to_remove = Vec::new();

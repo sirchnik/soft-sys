@@ -656,6 +656,29 @@ function initEventLog(
   });
 }
 
+// Instruction text constants
+const MODERATED_STATUS_TEXT = "Diese Zeichenfläche ist moderiert.";
+const MODERATED_INSTRUCTION = `
+  <p>
+    Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
+  </p>
+`;
+const READONLY_INSTRUCTION = `
+  <p>
+    Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
+  </p>
+`;
+const EDIT_INSTRUCTION = `
+  <p>
+    Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
+    ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
+    Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
+    Maustaste die Form bestimmen, und dann anschließend die maustaste
+    loslassen.
+  </p>
+  <p>Mit shift kann man die Shapes verschieben.</p>
+`;
+
 function initEventBus(
   eventBus: EventBus,
   eventStreamTextArea: HTMLTextAreaElement,
@@ -739,11 +762,7 @@ function initEventBus(
   eventBus.subscribe(EventTypes.RIGHTS_CHANGED, (event) => {
     if (event.payload.right === "R") {
       moderatedStatusElem.textContent = "";
-      instructionTextElem.innerHTML = `
-          <p>
-            Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
-          </p>
-        `;
+      instructionTextElem.innerHTML = READONLY_INSTRUCTION;
       // Disable toolbar
       if (toolArea) toolArea.setDisabled(true);
       return;
@@ -753,27 +772,13 @@ function initEventBus(
       return;
     }
     if (event.payload.moderated) {
-      eventStreamTextArea.value +=
-        "Die Rechte für diese Zeichenfläche wurden moderiert. Sie können keine neuen Formen zeichnen oder bestehende bearbeiten.\n";
-      instructionTextElem.innerHTML = `
-          <p>
-            Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
-          </p>
-        `;
+      moderatedStatusElem.textContent = MODERATED_STATUS_TEXT;
+      instructionTextElem.innerHTML = MODERATED_INSTRUCTION;
       // Disable toolbar
       if (toolArea) toolArea.setDisabled(true);
     } else {
       moderatedStatusElem.textContent = "";
-      instructionTextElem.innerHTML = `
-          <p>
-            Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
-            ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
-            Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
-            Maustaste die Form bestimmen, und dann anschließend die maustaste
-            loslassen.
-          </p>
-          <p>Mit shift kann man die Shapes verschieben.</p>
-        `;
+      instructionTextElem.innerHTML = EDIT_INSTRUCTION;
       // Enable toolbar
       if (toolArea) toolArea.setDisabled(false);
     }
@@ -784,31 +789,15 @@ export function canvasPage(pageContent: HTMLElement) {
   document.title = "Zeichenfläche";
   const canvas_id = window.location.href.split("/").at(-1);
   const user = getUser();
-  const readonly = user.canvases.find(
-    (c) => c.canvas_id === canvas_id && c.right === "R"
-  );
+  const userCanvas = user.canvases.find((c) => c.canvas_id === canvas_id);
+  const readonly = userCanvas && userCanvas.right === "R";
+  const moderated = userCanvas && userCanvas.moderated === true;
 
   // Add moderated status and instruction elements
   const moderatedStatusId = "moderatedStatus";
   const instructionTextId = "instructionText";
   const moderatedStatusHtml = `<div id="${moderatedStatusId}" style="color: red; font-weight: bold; margin-bottom: 8px;"></div>`;
   const instructionTextHtml = `<div id="${instructionTextId}" style="margin-bottom: 8px;"></div>`;
-
-  const readonlyInstruction = `
-    <p>
-      Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
-    </p>
-  `;
-  const editInstruction = `
-    <p>
-      Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
-      ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
-      Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
-      Maustaste die Form bestimmen, und dann anschließend die maustaste
-      loslassen.
-    </p>
-    <p>Mit shift kann man die Shapes verschieben.</p>
-  `;
 
   const content =
     moderatedStatusHtml +
@@ -819,19 +808,29 @@ export function canvasPage(pageContent: HTMLElement) {
       <div class="event-stream-container">
         <textarea id="eventStream" rows="10" cols="130"></textarea>
         <button id="loadEventsButton"${
-          readonly ? ' style="display:none"' : ""
+          userCanvas.right === "O" ? ' style="display:none"' : ""
         }>Load Events</button>
       </div>
     `;
   pageContent.innerHTML = content;
 
-  // Set initial instruction text
+  // Set initial instruction text and moderated status
   const instructionTextElem = document.getElementById(
     instructionTextId
   ) as HTMLElement;
-  instructionTextElem.innerHTML = readonly
-    ? readonlyInstruction
-    : editInstruction;
+  const moderatedStatusElem = document.getElementById(
+    moderatedStatusId
+  ) as HTMLElement;
+  if (moderated) {
+    moderatedStatusElem.textContent = MODERATED_STATUS_TEXT;
+    instructionTextElem.innerHTML = MODERATED_INSTRUCTION;
+  } else if (readonly) {
+    moderatedStatusElem.textContent = "";
+    instructionTextElem.innerHTML = READONLY_INSTRUCTION;
+  } else {
+    moderatedStatusElem.textContent = "";
+    instructionTextElem.innerHTML = EDIT_INSTRUCTION;
+  }
 
   const canvasDomElm = document.getElementById("drawArea") as HTMLCanvasElement;
   const menu = document.getElementsByClassName("tools")[0] as HTMLUListElement;
@@ -891,16 +890,13 @@ export function canvasPage(pageContent: HTMLElement) {
   );
   canvas = new Canvas(canvasDomElm, toolArea);
 
-  // Disable toolbar if readonly
-  if (readonly) {
+  // Disable toolbar if readonly or moderated
+  if (readonly || moderated) {
     toolArea.setDisabled(true);
   }
 
   // --- Event Handlers ---
-  const moderatedStatusElem = document.getElementById(
-    moderatedStatusId
-  ) as HTMLElement;
-  // Pass instructionTextElem to initEventBus
+  // Pass instructionTextElem and moderatedStatusElem to initEventBus
   initEventBus(
     eventBus,
     eventStreamTextArea,

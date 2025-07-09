@@ -1,4 +1,4 @@
-import { getUser } from "../auth";
+import { fetchUser, getUser } from "../auth";
 import { navigateTo } from "../router";
 
 export function homePage(pageContent: HTMLElement) {
@@ -229,7 +229,6 @@ export async function home(pageContent: HTMLElement) {
             email,
             right: null,
             successMsg: "Right removed.",
-            btn,
           });
         });
       });
@@ -275,14 +274,12 @@ export async function home(pageContent: HTMLElement) {
     email,
     right,
     successMsg,
-    btn = null,
   }: {
     modal: HTMLElement;
     id: string;
     email: string;
     right: string | null;
     successMsg: string;
-    btn?: Element | null;
   }) {
     const isRemove = right === null;
     let errorMsg = isRemove
@@ -301,9 +298,9 @@ export async function home(pageContent: HTMLElement) {
         return;
       }
       rightsError.textContent = successMsg;
+      await fetchUser();
       // Always refetch user and rerender
-      await import("../auth").then((m) => m.fetchUser());
-      home((modal.closest("#page-content") as HTMLElement) || document.body);
+      navigateTo("/");
     } catch (err) {
       (modal.querySelector("#rights-error") as HTMLElement).textContent =
         errorMsg;

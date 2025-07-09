@@ -8,6 +8,7 @@ export class WSocketEvent {
   }
 
   public async disconnect(): Promise<void> {
+    console.log("called disconnect");
     this.ws.close();
   }
 

@@ -96,11 +96,6 @@ async fn handle_connection_impl(
     let mut right = right;
     let mut moderated = initial_moderated;
 
-    if ["M", "O"].contains(&right.as_str()) && first_cmd.event_type == "manage" {
-        data_send.send(first_cmd).unwrap();
-        return Ok(());
-    }
-
     // Avoid moving canvas_id and pool by cloning inside the closure
     let handle_cmd = {
         let data_send = data_send.clone();
@@ -134,11 +129,9 @@ async fn handle_connection_impl(
         handle_cmd(serde_json::from_str(msg).unwrap()).await;
     }
 
-    let mut ws_receiver = ws_receiver.fuse();
     let mut rights_rx = rights_rx.resubscribe();
     loop {
         tokio::select! {
-            biased;
             changed = rights_rx.recv() => {
                 if let Ok(event) = changed {
                     match event {
@@ -146,25 +139,29 @@ async fn handle_connection_impl(
                             if let Some(new_right) = new_right {
                                 right = new_right.clone();
                                 // Send rights_changed event to client
-                                data_send
+                                let res = data_send
                                     .send(CanvasEvent {
                                         event_type: "RIGHTS_CHANGED".into(),
                                         canvas_id: canvas_id.clone(),
                                         timestamp: 0,
                                         payload: serde_json::json!({ "right": new_right }),
-                                    })
-                                    .unwrap();
+                                    });
+                                if let Err(e) = res {
+                                    error!("Error sending rights_changed event: {}", e);
+                                }
                             } else {
                                 // Send rights_changed event with null right
-                                data_send
+                                let res = data_send
                                     .send(CanvasEvent {
                                         event_type: "RIGHTS_CHANGED".into(),
                                         canvas_id: canvas_id.clone(),
                                         timestamp: 0,
                                         payload: serde_json::json!({ "right": null }),
-                                    })
-                                    .unwrap();
-                                break;
+                                    });
+                                if let Err(e) = res {
+                                    error!("Error sending rights_changed event: {}", e);
+                                }
+                                // break;
                             }
                         },
                         crate::shared::CanvasDataEvent::ModeratedChanged(ref cid, new_moderated) if *cid == canvas_id => {
