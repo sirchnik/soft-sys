@@ -61,7 +61,7 @@ pub fn create_client() -> CanvasFwd {
                 }
 
                 Some((event, from_id)) = select_all.next() => {
-                    if event.event_type=="rights_changed" {
+                    if event.event_type=="RIGHTS_CHANGED" { // if a client sends RIGHTS_CHANGED, they only get it back
                         id_canvas_map.remove(&from_id);
                         let mut ws_sender = canvas_sender_map
                             .get_mut(event.canvas_id.as_str())

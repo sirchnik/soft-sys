@@ -7,6 +7,7 @@ export enum EventTypes {
   SET_BORDER_COLOR_EVENT = "SET_BORDER_COLOR",
   CLEAR_CANVAS_EVENT = "CLEAR_CANVAS_EVENT",
   REDRAW_EVENT = "REDRAW_EVENT",
+  RIGHTS_CHANGED = "RIGHTS_CHANGED",
 }
 
 export interface Point2D {
@@ -36,6 +37,13 @@ export type AddShapePayload = BaseShapePayload &
 export type DomainEvent = {
   timestamp?: number;
 } & (
+  | {
+      type: EventTypes.RIGHTS_CHANGED;
+      payload: {
+        moderated?: boolean;
+        right?: string | null;
+      };
+    }
   | {
       type: EventTypes.ADD_SHAPE_EVENT;
       payload: AddShapePayload;

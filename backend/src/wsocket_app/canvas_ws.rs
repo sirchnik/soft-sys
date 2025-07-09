@@ -148,7 +148,7 @@ async fn handle_connection_impl(
                                 // Send rights_changed event to client
                                 data_send
                                     .send(CanvasEvent {
-                                        event_type: "rights_changed".into(),
+                                        event_type: "RIGHTS_CHANGED".into(),
                                         canvas_id: canvas_id.clone(),
                                         timestamp: 0,
                                         payload: serde_json::json!({ "right": new_right }),
@@ -158,7 +158,7 @@ async fn handle_connection_impl(
                                 // Send rights_changed event with null right
                                 data_send
                                     .send(CanvasEvent {
-                                        event_type: "rights_changed".into(),
+                                        event_type: "RIGHTS_CHANGED".into(),
                                         canvas_id: canvas_id.clone(),
                                         timestamp: 0,
                                         payload: serde_json::json!({ "right": null }),
@@ -172,7 +172,7 @@ async fn handle_connection_impl(
                             // Send moderated_changed event to client
                             data_send
                                 .send(CanvasEvent {
-                                    event_type: "rights_changed".into(),
+                                    event_type: "RIGHTS_CHANGED".into(),
                                     canvas_id: canvas_id.clone(),
                                     timestamp: 0,
                                     payload: serde_json::json!({ "moderated": new_moderated }),

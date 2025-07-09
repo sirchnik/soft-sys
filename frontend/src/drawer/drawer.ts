@@ -23,6 +23,7 @@ import {
 } from "./shapes";
 import { WSocketEvent } from "./wsocket-event";
 import { getUser } from "../auth";
+import { navigateTo } from "../router";
 
 export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
@@ -635,7 +636,9 @@ function initEventLog(
 function initEventBus(
   eventBus: EventBus,
   eventStreamTextArea: HTMLTextAreaElement,
-  sm: ShapeManager
+  sm: ShapeManager,
+  moderatedStatusElem: HTMLElement,
+  instructionTextElem: HTMLElement
 ) {
   eventBus.subscribeToAll((event: DomainEvent) => {
     if (
@@ -708,6 +711,43 @@ function initEventBus(
   eventBus.subscribe(EventTypes.CLEAR_CANVAS_EVENT, (_event) => {
     sm.clearAllShapes();
   });
+
+  eventBus.subscribe(EventTypes.RIGHTS_CHANGED, (event) => {
+    if (event.payload.right === "R") {
+      moderatedStatusElem.textContent = "";
+      instructionTextElem.innerHTML = `
+          <p>
+            Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
+          </p>
+        `;
+      return;
+    }
+    if (event.payload.right === null) {
+      navigateTo("/");
+      return;
+    }
+    if (event.payload.moderated) {
+      eventStreamTextArea.value +=
+        "Die Rechte für diese Zeichenfläche wurden moderiert. Sie können keine neuen Formen zeichnen oder bestehende bearbeiten.\n";
+      instructionTextElem.innerHTML = `
+          <p>
+            Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
+          </p>
+        `;
+    } else {
+      moderatedStatusElem.textContent = "";
+      instructionTextElem.innerHTML = `
+          <p>
+            Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
+            ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
+            Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
+            Maustaste die Form bestimmen, und dann anschließend die maustaste
+            loslassen.
+          </p>
+          <p>Mit shift kann man die Shapes verschieben.</p>
+        `;
+    }
+  });
 }
 
 export function canvasPage(pageContent: HTMLElement) {
@@ -716,11 +756,33 @@ export function canvasPage(pageContent: HTMLElement) {
   const user = getUser();
   const readonly = user.canvases[canvas_id] === "R";
 
-  const content = readonly
-    ? `
-      <p>
-        Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
-      </p>
+  // Add moderated status and instruction elements
+  const moderatedStatusId = "moderatedStatus";
+  const instructionTextId = "instructionText";
+  const moderatedStatusHtml = `<div id="${moderatedStatusId}" style="color: red; font-weight: bold; margin-bottom: 8px;"></div>`;
+  const instructionTextHtml = `<div id="${instructionTextId}" style="margin-bottom: 8px;"></div>`;
+
+  const readonlyInstruction = `
+    <p>
+      Sie betrachten diese Zeichenfläche im Nur-Lesen-Modus. Sie können die vorhandenen Formen sehen, aber keine neuen zeichnen oder bestehende bearbeiten.
+    </p>
+  `;
+  const editInstruction = `
+    <p>
+      Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
+      ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
+      Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
+      Maustaste die Form bestimmen, und dann anschließend die maustaste
+      loslassen.
+    </p>
+    <p>Mit shift kann man die Shapes verschieben.</p>
+  `;
+
+  const content =
+    moderatedStatusHtml +
+    instructionTextHtml +
+    (readonly
+      ? `
       <ul class="tools" style="display:none"></ul>
       <canvas id="drawArea" width="1024" height="500"></canvas>
       <div class="event-stream-container">
@@ -728,23 +790,23 @@ export function canvasPage(pageContent: HTMLElement) {
         <button id="loadEventsButton" style="display:none">Load Events</button>
       </div>
     `
-    : `
-      <p>
-        Wählen Sie auf der linken Seite Ihr Zeichenwerkzeug aus. Haben Sie eines
-        ausgewählt, können Sie mit der Maus die entsprechenden Figuren zeichnen.
-        Typischerweise, indem Sie die Maus drücken, dann mit gedrückter
-        Maustaste die Form bestimmen, und dann anschließend die Maustaste
-        loslassen.
-      </p>
-      <p>Mit shift kann man die Shapes verschieben.</p>
+      : `
       <ul class="tools"></ul>
       <canvas id="drawArea" width="1024" height="500"></canvas>
       <div class="event-stream-container">
         <textarea id="eventStream" rows="10" cols="130"></textarea>
         <button id="loadEventsButton">Load Events</button>
       </div>
-    `;
+    `);
   pageContent.innerHTML = content;
+
+  // Set initial instruction text
+  const instructionTextElem = document.getElementById(
+    instructionTextId
+  ) as HTMLElement;
+  instructionTextElem.innerHTML = readonly
+    ? readonlyInstruction
+    : editInstruction;
 
   const canvasDomElm = document.getElementById("drawArea") as HTMLCanvasElement;
   const menu = document.getElementsByClassName("tools")[0];
@@ -810,7 +872,17 @@ export function canvasPage(pageContent: HTMLElement) {
   canvas = new Canvas(canvasDomElm, toolArea);
 
   // --- Event Handlers ---
-  initEventBus(eventBus, eventStreamTextArea, sm);
+  const moderatedStatusElem = document.getElementById(
+    moderatedStatusId
+  ) as HTMLElement;
+  // Pass instructionTextElem to initEventBus
+  initEventBus(
+    eventBus,
+    eventStreamTextArea,
+    sm,
+    moderatedStatusElem,
+    instructionTextElem
+  );
   initEventLog(loadEventsButton, eventStreamTextArea, eventBus, canvas, sm);
 
   sm.redraw();
