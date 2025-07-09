@@ -128,6 +128,10 @@ pub async fn change_canvas_right(
         error!("Failed to send canvas update notification: {:?}", res.err());
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
+    info!(
+        "Changed right for user {} on canvas {} to {:?}",
+        payload.email, canvas_id, payload.right
+    );
     // If user changes their own right, update JWT and set cookie
     if user_id == claims.id {
         let mut new_claims = claims;

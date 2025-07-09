@@ -17,8 +17,9 @@ use crate::{
 use crate::{shared::jwt::parse_jwt_from_cookies, wsocket_app::canvas_fwd::CanvasFwd};
 
 pub async fn create_websocket_server(
-    ws_receiver: tokio::sync::broadcast::Receiver<bool>,
+    ws_sender: tokio::sync::broadcast::Sender<bool>,
 ) -> JoinHandle<()> {
+    // Spawn a thread to log every broadcast for testing
     let pool = SqlitePoolOptions::new()
         .connect(
             env::var("DATABASE_URL")
@@ -35,7 +36,7 @@ pub async fn create_websocket_server(
         while let Ok((stream, _)) = listener.accept().await {
             let pool = pool.clone();
             let clients = clients.clone();
-            let receiver = ws_receiver.resubscribe();
+            let receiver = ws_sender.subscribe();
             tokio::spawn(async move {
                 accept_connection(stream, clients, pool, receiver).await;
             });

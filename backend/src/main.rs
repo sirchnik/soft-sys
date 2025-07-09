@@ -34,11 +34,21 @@ async fn main() -> Result<()> {
         .init();
 
     // Create broadcast channel for ws communication
-    let (ws_sender, ws_receiver) = tokio::sync::broadcast::channel::<bool>(100);
+    let (ws_sender, mut dummy_receiver) = tokio::sync::broadcast::channel::<bool>(100);
+
+    // Spawn a task to log every broadcast for testing
+    tokio::spawn(async move {
+        loop {
+            match dummy_receiver.recv().await {
+                Ok(msg) => tracing::trace!("[Broadcast LOG] Received: {:?}", msg),
+                Err(e) => tracing::warn!("[Broadcast LOG] Error receiving broadcast: {}", e),
+            }
+        }
+    });
 
     let axum_handle: JoinHandle<()> = axum_app::create_axum(ws_sender.clone()).await;
 
-    let wtransport_handle: JoinHandle<()> = wsocket_app::create_websocket_server(ws_receiver).await;
+    let wtransport_handle: JoinHandle<()> = wsocket_app::create_websocket_server(ws_sender).await;
 
     // Wait for either server to finish (or error)
     let _ = tokio::try_join!(axum_handle, wtransport_handle)?;
