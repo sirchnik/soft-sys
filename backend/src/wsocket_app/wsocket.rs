@@ -17,7 +17,7 @@ use crate::{
 use crate::{shared::jwt::parse_jwt_from_cookies, wsocket_app::canvas_fwd::CanvasFwd};
 
 pub async fn create_websocket_server(
-    ws_sender: tokio::sync::broadcast::Sender<bool>,
+    ws_sender: tokio::sync::broadcast::Sender<crate::shared::CanvasDataEvent>,
 ) -> JoinHandle<()> {
     // Spawn a thread to log every broadcast for testing
     let pool = SqlitePoolOptions::new()
@@ -48,7 +48,7 @@ async fn accept_connection(
     stream: TcpStream,
     client: CanvasFwd,
     pool: SqlitePool,
-    ws_receiver: tokio::sync::broadcast::Receiver<bool>,
+    ws_receiver: tokio::sync::broadcast::Receiver<crate::shared::CanvasDataEvent>,
 ) {
     let mut jwt_outer: Option<Claims> = None;
     let callback = |req: &Request, response: Response| {

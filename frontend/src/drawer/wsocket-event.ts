@@ -59,12 +59,6 @@ export class WSocketEvent {
       console.error("Error parsing received data:", data, error);
     }
     console.log("Received data:", parsed);
-    if (parsed.type === "disconnect") {
-      console.log("Received disconnect message, closing WebSocket");
-      this.ws.close();
-      navigateTo("/");
-      return;
-    }
     const events: DomainEvent[] = Array.isArray(parsed)
       ? parsed
           .map((e) => {

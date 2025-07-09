@@ -61,15 +61,18 @@ pub fn create_client() -> CanvasFwd {
                 }
 
                 Some((event, from_id)) = select_all.next() => {
-                    if event.event_type=="disconnect" {
+                    if event.event_type=="rights_changed" {
                         id_canvas_map.remove(&from_id);
-                        let _ = canvas_sender_map
+                        let mut ws_sender = canvas_sender_map
                             .get_mut(event.canvas_id.as_str())
                             .unwrap()
                             .remove(&from_id)
-                            .unwrap()
-                            .close()
-                            .await;
+                            .unwrap();
+                        ws_sender
+                            .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                            .await
+                            .unwrap();
+                        ws_sender.close().await.unwrap();
                         continue;
                     }
                     let mut to_remove = Vec::new();

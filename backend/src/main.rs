@@ -34,7 +34,8 @@ async fn main() -> Result<()> {
         .init();
 
     // Create broadcast channel for ws communication
-    let (ws_sender, mut dummy_receiver) = tokio::sync::broadcast::channel::<bool>(100);
+    let (ws_sender, mut dummy_receiver) =
+        tokio::sync::broadcast::channel::<shared::CanvasDataEvent>(100);
 
     // Spawn a task to log every broadcast for testing
     tokio::spawn(async move {

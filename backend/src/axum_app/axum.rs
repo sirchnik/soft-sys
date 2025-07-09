@@ -8,11 +8,11 @@ use crate::axum_app::routes::create_router;
 #[derive(Clone)]
 pub struct AppState {
     pub db: Arc<SqlitePool>,
-    pub ws_sender: tokio::sync::broadcast::Sender<bool>,
+    pub ws_sender: tokio::sync::broadcast::Sender<crate::shared::CanvasDataEvent>,
 }
 
 pub async fn create_axum(
-    ws_sender: tokio::sync::broadcast::Sender<bool>,
+    ws_sender: tokio::sync::broadcast::Sender<crate::shared::CanvasDataEvent>,
 ) -> tokio::task::JoinHandle<()> {
     let pool = SqlitePoolOptions::new()
         .connect(

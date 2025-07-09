@@ -18,7 +18,7 @@ pub async fn handle_canvas_connection(
     jwt: Claims,
     client: CanvasFwd,
     pool: SqlitePool,
-    rights_rx: broadcast::Receiver<bool>,
+    rights_rx: broadcast::Receiver<crate::shared::CanvasDataEvent>,
 ) {
     if let Err(e) = handle_connection_impl(ws_stream, jwt, client, pool, rights_rx).await {
         error!("Error processing connection: {}", e);
@@ -30,7 +30,7 @@ async fn handle_connection_impl(
     jwt: Claims,
     client: CanvasFwd,
     pool: SqlitePool,
-    mut rights_rx: broadcast::Receiver<bool>,
+    rights_rx: broadcast::Receiver<crate::shared::CanvasDataEvent>,
 ) -> Result<()> {
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     // Receive first message (should be FirstData)
@@ -135,36 +135,51 @@ async fn handle_connection_impl(
     }
 
     let mut ws_receiver = ws_receiver.fuse();
+    let mut rights_rx = rights_rx.resubscribe();
     loop {
         tokio::select! {
             biased;
             changed = rights_rx.recv() => {
-                if changed.is_ok() {
-                    // Fetch latest rights/moderated from DB
-                    let canvas_data = sqlx::query(
-                        "SELECT right, moderated FROM user_canvas uc JOIN canvas c ON uc.canvas_id = c.id WHERE uc.canvas_id = ? AND user_id = ?",
-                    )
-                    .bind(&canvas_id)
-                    .bind(&jwt.id)
-                    .fetch_one(&pool)
-                    .await;
-                    match canvas_data {
-                        Ok(canvas_data) => {
-                            right = canvas_data.try_get("right")?;
-                            moderated = canvas_data.try_get("moderated")?;
-                        }
-                        Err(_) => {
-                            // User lost access
+                if let Ok(event) = changed {
+                    match event {
+                        crate::shared::CanvasDataEvent::RightChanged(ref cid, (ref uid, ref new_right)) if *cid == canvas_id && *uid == jwt.id => {
+                            if let Some(new_right) = new_right {
+                                right = new_right.clone();
+                                // Send rights_changed event to client
+                                data_send
+                                    .send(CanvasEvent {
+                                        event_type: "rights_changed".into(),
+                                        canvas_id: canvas_id.clone(),
+                                        timestamp: 0,
+                                        payload: serde_json::json!({ "right": new_right }),
+                                    })
+                                    .unwrap();
+                            } else {
+                                // Send rights_changed event with null right
+                                data_send
+                                    .send(CanvasEvent {
+                                        event_type: "rights_changed".into(),
+                                        canvas_id: canvas_id.clone(),
+                                        timestamp: 0,
+                                        payload: serde_json::json!({ "right": null }),
+                                    })
+                                    .unwrap();
+                                break;
+                            }
+                        },
+                        crate::shared::CanvasDataEvent::ModeratedChanged(ref cid, new_moderated) if *cid == canvas_id => {
+                            moderated = new_moderated;
+                            // Send moderated_changed event to client
                             data_send
                                 .send(CanvasEvent {
-                                    event_type: "disconnect".into(),
+                                    event_type: "rights_changed".into(),
                                     canvas_id: canvas_id.clone(),
                                     timestamp: 0,
-                                    payload: serde_json::Value::Null,
+                                    payload: serde_json::json!({ "moderated": new_moderated }),
                                 })
                                 .unwrap();
-                            break;
-                        }
+                        },
+                        _ => {}
                     }
                 }
             }

@@ -110,6 +110,11 @@ pub async fn change_canvas_right(
         if res.is_err() {
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
+        // Broadcast right removal
+        let _ = state.ws_sender.send(crate::shared::CanvasDataEvent::RightChanged(
+            canvas_id.clone(),
+            (user_id.clone(), None),
+        ));
     } else {
         // Insert or update right
         let right = payload.right.as_ref().unwrap();
@@ -122,12 +127,13 @@ pub async fn change_canvas_right(
         if res.is_err() {
             return Err(StatusCode::INTERNAL_SERVER_ERROR);
         }
+        // Broadcast right change
+        let _ = state.ws_sender.send(crate::shared::CanvasDataEvent::RightChanged(
+            canvas_id.clone(),
+            (user_id.clone(), Some(right.clone())),
+        ));
     }
-    let res = state.ws_sender.send(true);
-    if res.is_err() {
-        error!("Failed to send canvas update notification: {:?}", res.err());
-        return Err(StatusCode::INTERNAL_SERVER_ERROR);
-    }
+    // Remove redundant bool broadcast
     info!(
         "Changed right for user {} on canvas {} to {:?}",
         payload.email, canvas_id, payload.right
@@ -192,7 +198,11 @@ pub async fn set_moderated(
         );
         return Err(StatusCode::INTERNAL_SERVER_ERROR);
     }
-    state.ws_sender.send(true).unwrap();
+    // After moderation change, broadcast ModeratedChanged event
+    let _ = state.ws_sender.send(crate::shared::CanvasDataEvent::ModeratedChanged(
+        canvas_id.clone(),
+        payload.moderated,
+    ));
     Ok(Response::new(Body::from("OK")))
 }
 
