@@ -1,19 +1,30 @@
 #!/bin/bash
 
+set -e
+
 git clone ssh://git@gitlab.informatik.hs-augsburg.de:2222/niks/soft-sys.git
 
 cd soft-sys
 
-cd drawer
+# Abgabe soll vom Commit eca86793ae263d52399b53ff70f0dd7ab1b0d9bd bewertet werden,
+# weil die Aufgabenstellung zu 5.4 erst am 08.07. erklärt wurde und ich schon mit 5.5 weitergemacht habe.
+# Theoretisch wären aber 
+# A5.1 de47fdffe017f70fdf9b286027a948fa5c38342f
+# A5.2 d26873ff2f8490449ced07fb75f0cf0e99550dd7
+# A5.3 121d72b82bb5ed5ffab0a1972daf1ee47f0309d2 
+# die Abgabe-Commits für die Aufgaben.
 
-# Aufgabe 4.1
+# # Kommentare zu den einzelnen Aufgaben:
+#
+# ## A5.4/5.3
+# In der Aufgabe sollten die Rechte der User auf Canvas in JWT gespeichert werden.
+# bis 9ef18f9fd92c66135a451489499c637f4351461f war das noch eingebaut.
+# Nach Rückfrage bei Ihnen hab ich mich aber entschieden, die Rechte nicht mehr zu speichern,
+# sondern per API abzufragen.
+# Das hat den Vorteil, dass Bearbeitung der Canvas Rechten nicht erst nach neuer Login
+# oder Token-Generierung sichtbar wird.
+# Das hat den Nachteil, dass die API-Calls mit Datenbankzugriff langsamer sind.
+# Für die Funktionalität der Anwendung ist aber Bearbeitung essentiell.
 
-git checkout 304949e42a449e0a744914b7b833a65e9f0a816d
-rm -rf dist/
-npx tsc
-python -m http.server 8123 &
-xdg-open http://localhost:8123
 
-# Aufgabe 4.2
-
-git checkout 304949e42a449e0a744914b7b833a65e9f0a816d
+git checkout eca86793ae263d52399b53ff70f0dd7ab1b0d9bd

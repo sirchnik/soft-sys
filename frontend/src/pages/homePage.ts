@@ -27,9 +27,14 @@ export async function home(pageContent: HTMLElement) {
         .map((canvas) => {
           // Find current user's right for this canvas
           return `<div class="canvas-card" style="background: #fff; border-radius: 10px; box-shadow: 0 2px 10px rgba(79,140,255,0.08); padding: 1.2em 1.5em; width: 100%; min-height: 150px; display: flex; flex-direction: column; align-items: flex-start; gap: 0.7em; border: 1.5px solid #e3edff; box-sizing: border-box;">
-              <div style="font-size: 1.13em; font-weight: 600; color: #23272f;">${
-                canvas.canvas_id
-              }</div>
+              <div style="font-size: 1.13em; font-weight: 600; color: #23272f; display: flex; align-items: center; gap: 0.7em;">
+                ${canvas.canvas_id}
+                ${
+                  canvas.moderated
+                    ? '<span style="background:#f3f4f6; color:#4f8cff; border:1px solid #4f8cff; border-radius:5px; padding:0.1em 0.7em; font-size:0.92em; margin-left:0.5em;">Moderated</span>'
+                    : ""
+                }
+              </div>
               <div style="font-size: 0.98em; color: #4f8cff; font-weight: 500;">Right: ${
                 canvas.right
               }</div>

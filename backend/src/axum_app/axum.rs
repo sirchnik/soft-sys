@@ -32,6 +32,7 @@ pub async fn create_axum(
         .allow_methods([
             Method::GET,
             Method::POST,
+            Method::PATCH,
             Method::PUT,
             Method::DELETE,
             Method::OPTIONS,

@@ -104,6 +104,30 @@ html {
   background: #d9363e;
 }
 
+/* User info button */
+.user-info-btn {
+  background: #f3f6fa;
+  color: #23272f;
+  border: 1.5px solid #4f8cff;
+  border-radius: 5px;
+  padding: 0.35em 1.1em;
+  font-size: 1em;
+  font-weight: 500;
+  cursor: pointer;
+  margin-left: 1em;
+  transition: background 0.18s, color 0.18s, border 0.18s;
+}
+.user-info-btn:hover:enabled {
+  background: #e3edff;
+  color: #4f8cff;
+}
+.user-info-btn:disabled {
+  background: #e5e7eb;
+  color: #a1a1aa;
+  border: 1.5px solid #cfd8dc;
+  cursor: not-allowed;
+}
+
 /* Page content */
 .page-content {
   margin: 0 auto;

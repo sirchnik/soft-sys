@@ -4,6 +4,7 @@ import { homePage } from "./pages/homePage";
 import { canvasPage as canvasPage } from "./drawer/drawer";
 import { loginPage } from "./pages/loginPage";
 import { registerPage } from "./pages/registerPage";
+import { userInfoPage } from "./pages/userInfoPage";
 
 let afterLeave = () => {};
 let pageContent: HTMLElement | null = null;
@@ -20,6 +21,7 @@ export const routes: Record<
   canvas: canvasPage,
   login: loginPage,
   register: registerPage,
+  user: userInfoPage,
   404: notFound,
 };
 

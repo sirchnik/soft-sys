@@ -13,6 +13,7 @@ use axum::{
 };
 use jsonwebtoken::encode;
 use serde::Deserialize;
+use serde::Serialize;
 use sqlx::Row;
 use std::sync::Arc;
 
@@ -109,4 +110,74 @@ pub async fn logout() -> impl IntoResponse {
         .headers_mut()
         .insert(header::SET_COOKIE, cookie.parse().unwrap());
     response
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateUserPayload {
+    pub email: Option<String>,
+    pub display_name: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UserResponse {
+    pub id: String,
+    pub email: String,
+    pub display_name: String,
+}
+
+pub async fn update_user(
+    state: Extension<Arc<AppState>>,
+    claims: Claims,
+    axum::extract::Path(user_id): axum::extract::Path<String>,
+    Json(payload): Json<UpdateUserPayload>,
+) -> Result<impl IntoResponse, AuthError> {
+    if claims.id != user_id {
+        return Err(AuthError::WrongCredentials);
+    }
+    let mut tx = state.db.begin().await.unwrap();
+    if let Some(email) = payload.email.as_ref() {
+        sqlx::query("UPDATE users SET email = ? WHERE id = ?")
+            .bind(email)
+            .bind(&user_id)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    if let Some(display_name) = payload.display_name.as_ref() {
+        sqlx::query("UPDATE users SET display_name = ? WHERE id = ?")
+            .bind(display_name)
+            .bind(&user_id)
+            .execute(&mut *tx)
+            .await
+            .unwrap();
+    }
+    tx.commit().await.unwrap();
+    // Fetch updated user
+    let row = sqlx::query("SELECT id, email, display_name FROM users WHERE id = ?")
+        .bind(&user_id)
+        .fetch_one(&*state.db)
+        .await
+        .unwrap();
+    let user = UserResponse {
+        id: row.try_get("id").unwrap(),
+        email: row.try_get("email").unwrap(),
+        display_name: row.try_get("display_name").unwrap(),
+    };
+    // Create new claims and JWT
+    let claims = Claims {
+        id: user.id.clone(),
+        email: user.email.clone(),
+        exp: 2000000000,
+        display_name: user.display_name.clone(),
+    };
+    let token = encode(&jsonwebtoken::Header::default(), &claims, &KEYS.encoding)
+        .map_err(|_| AuthError::TokenCreation)?;
+    let cookie = format!("access_token={}; HttpOnly; Path=/; SameSite=Lax", token);
+    let mut response = axum::response::Response::new(axum::body::Body::from(
+        serde_json::to_string(&user).unwrap(),
+    ));
+    response
+        .headers_mut()
+        .insert(header::SET_COOKIE, cookie.parse().unwrap());
+    Ok(response)
 }

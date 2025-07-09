@@ -37,7 +37,8 @@ pub fn create_router() -> Router {
                             routing::post(canvas::set_moderated),
                         )
                         .route("/datas", routing::get(canvas::get_canvases_data)),
-                ),
+                )
+                .route("/user/{id}", routing::patch(auth::update_user)),
         )
         .nest_service("/dist", get_service(ServeDir::new(dist_path)))
         .nest_service("/static", get_service(ServeDir::new(static_path)))

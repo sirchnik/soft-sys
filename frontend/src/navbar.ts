@@ -24,9 +24,23 @@ export function renderNavBar(current: string) {
       .join("");
   }
   // User info and logout
-  const userInfo = document.getElementById("navbar-user-info");
+  const userInfo = document.getElementById(
+    "navbar-user-info"
+  ) as HTMLButtonElement;
   const logoutBtn = document.getElementById("logout-btn");
-  if (userInfo) userInfo.textContent = isAuth ? user.email : "Gast";
+  if (userInfo) {
+    userInfo.textContent = isAuth
+      ? `${user.email} - ${user.display_name}`
+      : "Gast";
+    userInfo.disabled = !isAuth;
+    if (isAuth) {
+      userInfo.style.cursor = "pointer";
+      userInfo.onclick = () => navigateTo("user");
+    } else {
+      userInfo.style.cursor = "default";
+      userInfo.onclick = null;
+    }
+  }
   if (logoutBtn) logoutBtn.style.display = isAuth ? "inline-block" : "none";
 }
 

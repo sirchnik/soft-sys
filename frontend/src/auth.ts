@@ -1,5 +1,6 @@
 let user: {
   email: string;
+  display_name: string;
   canvases: {
     canvas_id: string;
     moderated: boolean;
