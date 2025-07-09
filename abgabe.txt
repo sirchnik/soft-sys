@@ -6,40 +6,39 @@ git clone ssh://git@gitlab.informatik.hs-augsburg.de:2222/niks/soft-sys.git
 
 cd soft-sys
 
-# Abgabe soll vom Commit eca86793ae263d52399b53ff70f0dd7ab1b0d9bd bewertet werden,
-# weil die Aufgabenstellung zu 5.4 erst am 08.07. erklärt wurde und ich schon mit 5.5 weitergemacht habe.
-# Theoretisch wären aber 
-# A5.1 de47fdffe017f70fdf9b286027a948fa5c38342f
-# A5.2 d26873ff2f8490449ced07fb75f0cf0e99550dd7
-# A5.3 121d72b82bb5ed5ffab0a1972daf1ee47f0309d2 
-# die Abgabe-Commits für die Aufgaben.
+# Die Bewertung soll auf dem Commit 3012f5ccc89cd60ea1fb69e856702f9d2ff14854 basieren,
+# da die Aufgabenstellung zu 5.4 erst am 08.07. erklärt wurde und ich bereits mit 5.5 fortgefahren bin.
+# Theoretisch wären jedoch folgende Commits die Abgabe-Commits für die jeweiligen Aufgaben:
+# A5.1: de47fdffe017f70fdf9b286027a948fa5c38342f
+# A5.2: d26873ff2f8490449ced07fb75f0cf0e99550dd7
+# A5.3: 121d72b82bb5ed5ffab0a1972daf1ee47f0309d2
 
-# # Kommentare zu den einzelnen Aufgaben:
+# Kommentare zu den einzelnen Aufgaben:
 #
-# ## 5.3
-# - In der Aufgabe sollten die Rechte der User auf Canvas in JWT gespeichert werden.
-#   bis 9ef18f9fd92c66135a451489499c637f4351461f war das noch eingebaut.
-#   Nach Rückfrage bei Ihnen hab ich mich aber entschieden, die Rechte nicht mehr zu speichern,
+# 5.3
+# - In dieser Aufgabe sollten die Rechte der User auf Canvas im JWT gespeichert werden.
+#   Bis Commit 9ef18f9fd92c66135a451489499c637f4351461f war dies noch implementiert.
+#   Nach Rücksprache mit Ihnen habe ich mich jedoch entschieden, die Rechte nicht mehr zu speichern,
 #   sondern per API abzufragen.
-#   Das hat den Vorteil, dass Bearbeitung der Canvas Rechten nicht erst nach neuer Login
-#   oder Token-Generierung sichtbar wird.
-#   Das hat den Nachteil, dass die API-Calls mit Datenbankzugriff langsamer sind.
-#   Für die Funktionalität der Anwendung ist aber Bearbeitung essentiell.
+#   Vorteil: Änderungen an den Canvas-Rechten werden sofort wirksam und sind nicht erst nach erneutem Login
+#   oder Token-Generierung sichtbar.
+#   Nachteil: Die API-Calls mit Datenbankzugriff sind etwas langsamer.
+#   Für die Funktionalität der Anwendung ist die sofortige Bearbeitung jedoch essenziell.
 #
-# ## 5.4
-# - Der Satz `V: Er hat Schreibenderechte, und kann dies auch bearbeiten, falls die im Zustand “moderiert” ist,`
-#   ist nicht ganz klar.
-#   Ich habe `V` jetzt einfach unbedingte Schreibenderechte gegeben. Hätte auch einfach anders sein können.
+# 5.4
+# - Der Satz „V: Er hat Schreibenderechte, und kann dies auch bearbeiten, falls die im Zustand ‚moderiert‘ ist,“
+#   war für mich nicht ganz eindeutig.
+#   Ich habe V nun uneingeschränkte Schreibrechte gegeben. Es wäre aber auch anders interpretierbar gewesen.
 #
-# ## A5.5
+# A5.5
 #
 
-git checkout eca86793ae263d52399b53ff70f0dd7ab1b0d9bd
+git checkout 3012f5ccc89cd60ea1fb69e856702f9d2ff14854
 
 docker compose up -d --build
 xdg-open http://localhost:8000
 
-# oder
+# Alternativ:
 
 cd frontend
 pnpm install && pnpm dev &
