@@ -62,7 +62,11 @@ export class Line extends AbstractShape implements Shape {
     return new Line(
       new Point2D(this.from.x + dx, this.from.y + dy),
       new Point2D(this.to.x + dx, this.to.y + dy),
-      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+      {
+        backgroundColor: this.backgroundColor,
+        borderColor: this.borderColor,
+        id: this.id,
+      }
     );
   }
   toSerializable(): AddShapePayload {
@@ -131,7 +135,11 @@ export class Circle extends AbstractShape implements Shape {
     return new Circle(
       new Point2D(this.center.x + dx, this.center.y + dy),
       this.radius,
-      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+      {
+        backgroundColor: this.backgroundColor,
+        borderColor: this.borderColor,
+        id: this.id,
+      }
     );
   }
   toSerializable(): AddShapePayload {
@@ -184,7 +192,11 @@ export class Rectangle extends AbstractShape implements Shape {
     return new Rectangle(
       new Point2D(this.from.x + dx, this.from.y + dy),
       new Point2D(this.to.x + dx, this.to.y + dy),
-      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+      {
+        backgroundColor: this.backgroundColor,
+        borderColor: this.borderColor,
+        id: this.id,
+      }
     );
   }
   toSerializable(): AddShapePayload {
@@ -248,7 +260,11 @@ export class Triangle extends AbstractShape implements Shape {
       new Point2D(this.p1.x + dx, this.p1.y + dy),
       new Point2D(this.p2.x + dx, this.p2.y + dy),
       new Point2D(this.p3.x + dx, this.p3.y + dy),
-      { backgroundColor: this.backgroundColor, borderColor: this.borderColor }
+      {
+        backgroundColor: this.backgroundColor,
+        borderColor: this.borderColor,
+        id: this.id,
+      }
     );
   }
   toSerializable(): AddShapePayload {

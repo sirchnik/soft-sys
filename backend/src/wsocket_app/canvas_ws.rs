@@ -106,17 +106,20 @@ async fn handle_connection_impl(
             let canvas_id = canvas_id.clone();
             let pool = pool.clone();
             async move {
-                let res =
-                    sqlx::query("INSERT INTO canvas_events (canvas_id, events) VALUES ($1, $2)")
-                        .bind(&canvas_id)
-                        .bind(serde_json::to_string(&event).unwrap())
-                        .execute(&pool)
-                        .await;
+                if event.event_type != "SELECTION_EVENT" {
+                    let res = sqlx::query(
+                        "INSERT INTO canvas_events (canvas_id, events) VALUES ($1, $2)",
+                    )
+                    .bind(&canvas_id)
+                    .bind(serde_json::to_string(&event).unwrap())
+                    .execute(&pool)
+                    .await;
 
-                match res {
-                    Ok(_) => {}
-                    Err(e) => {
-                        println!("Error {:?}", e);
+                    match res {
+                        Ok(_) => {}
+                        Err(e) => {
+                            println!("Error {:?}", e);
+                        }
                     }
                 }
 

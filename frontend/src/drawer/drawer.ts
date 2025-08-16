@@ -29,6 +29,17 @@ export const MARKED_WIDTH = 4;
 const canvasWidth = 1024,
   canvasHeight = 500;
 
+// helper to hash user_id to a color string
+function userIdToColor(userId: string): string {
+  let sum = 0;
+  for (let i = 0; i < userId.length; i++) {
+    sum += userId.charCodeAt(i);
+  }
+  // Use HSL for visually distinct colors
+  const hue = sum % 360;
+  return `hsl(${hue}, 80%, 60%)`;
+}
+
 export interface CanvasTool {
   label?: string;
   handleMouseDown(e: MouseEvent): void;
@@ -49,7 +60,7 @@ export type DrawOptions = (
 };
 type MouseEvents = "handleMouseUp" | "handleMouseMove" | "handleMouseDown";
 
-class SelectionManager {
+class LocalSelectionManager {
   private selectedShapes: Shape[] = [];
   private altStepper = 0;
   // Drag&Drop State
@@ -87,7 +98,7 @@ class SelectionManager {
 
     if (!clickedShape) {
       if (!e.ctrlKey) {
-        this.clearSelection();
+        return this.clearSelection();
       }
       // If Ctrl is held and no shape is clicked, selection remains unchanged.
     } else {
@@ -106,6 +117,13 @@ class SelectionManager {
         this.selectedShapes = [clickedShape];
       }
     }
+    this.eventBus.dispatch({
+      type: EventTypes.SELECTION_EVENT,
+      payload: {
+        userId: getUser().id,
+        selectedShapeIds: this.selectedShapes.map((shape) => shape.id),
+      },
+    });
   }
 
   private _showContextMenu(e: MouseEvent): void {
@@ -291,13 +309,14 @@ class SelectionManager {
         type: EventTypes.REDRAW_EVENT,
         payload: {},
       });
+      this.eventBus.dispatch({
+        type: EventTypes.SELECTION_EVENT,
+        payload: {
+          userId: getUser().id,
+          selectedShapeIds: this.selectedShapes.map((shape) => shape.id),
+        },
+      });
     }
-  }
-
-  getSelectedShapes(): { [id: number]: Shape | undefined } {
-    return Object.fromEntries(
-      this.selectedShapes.map((shape) => [shape.id, shape])
-    );
   }
 
   clearSelection(): void {
@@ -305,6 +324,13 @@ class SelectionManager {
     this.altStepper = 0;
     // Redraw is needed to remove selection highlights
     this.localShapeManager.redraw();
+    this.eventBus.dispatch({
+      type: EventTypes.SELECTION_EVENT,
+      payload: {
+        userId: getUser().id,
+        selectedShapeIds: [],
+      },
+    });
   }
 }
 
@@ -317,7 +343,7 @@ class ToolArea {
   constructor(
     shapesSelector: CanvasTool[],
     menue: Element,
-    private selectionManager: SelectionManager
+    private localSelectionManager: LocalSelectionManager
   ) {
     this.menuElm = menue as HTMLUListElement;
     const domElms = this.domElms;
@@ -328,7 +354,7 @@ class ToolArea {
       domElms.push(domSelElement);
 
       domSelElement.addEventListener("click", () => {
-        this.selectionManager.clearSelection();
+        this.localSelectionManager.clearSelection();
         selectFactory.call(this, sl, domSelElement);
       });
     });
@@ -350,7 +376,7 @@ class ToolArea {
     domElms.push(domSelElement);
 
     domSelElement.addEventListener("click", () => {
-      this.selectionManager.clearSelection();
+      this.localSelectionManager.clearSelection();
       for (let j = 0; j < domElms.length; j++) {
         domElms[j].classList.remove("marked");
       }
@@ -365,7 +391,7 @@ class ToolArea {
       this.menuElm.setAttribute("disabled", "true");
       this.selectedShape = undefined;
       this.selectionMode = false;
-      this.selectionManager.clearSelection();
+      this.localSelectionManager.clearSelection();
       this.domElms.forEach((li) => {
         li.classList.remove("marked");
         li.style.pointerEvents = "none";
@@ -388,8 +414,22 @@ class ToolArea {
     return this.selectedShape;
   }
 
-  getSelectionManager(): SelectionManager {
-    return this.selectionManager;
+  getLocalSelectionManager(): LocalSelectionManager {
+    return this.localSelectionManager;
+  }
+}
+
+class SelectionManager {
+  public readonly selectionMap: Record<string, string[] | undefined> = {}; // userId -> selectedShapeIds
+
+  constructor(private eventBus: EventBus) {
+    this.eventBus.subscribe(EventTypes.SELECTION_EVENT, (event) => {
+      this.selectionMap[event.payload.userId] = event.payload.selectedShapeIds;
+    });
+    this.eventBus.dispatch({
+      type: EventTypes.REDRAW_EVENT,
+      payload: {},
+    });
   }
 }
 
@@ -410,7 +450,11 @@ class Canvas implements ShapeManager, CanvasTool {
   private shapes: Shape[] = [];
   private temporaryShapes: Shape[] = [];
 
-  constructor(canvasDomElement: HTMLCanvasElement, private toolarea: ToolArea) {
+  constructor(
+    canvasDomElement: HTMLCanvasElement,
+    private toolarea: ToolArea,
+    private SelectionManager: SelectionManager
+  ) {
     this.ctx = canvasDomElement.getContext("2d")!;
     canvasDomElement.oncontextmenu = (e) => e.preventDefault();
     canvasDomElement.addEventListener(
@@ -438,7 +482,7 @@ class Canvas implements ShapeManager, CanvasTool {
   }
 
   private handleMouse(methodName: MouseEvents, e: MouseEvent): void {
-    const manager = this.toolarea.getSelectionManager();
+    const manager = this.toolarea.getLocalSelectionManager();
     if (this.toolarea.selectionModeActive()) {
       manager[methodName]?.(e);
       return;
@@ -506,16 +550,23 @@ class Canvas implements ShapeManager, CanvasTool {
     this.ctx.fillRect(0, 0, canvasWidth, canvasHeight);
     this.ctx.stroke();
 
-    const selectedShapesMap = this.toolarea
-      .getSelectionManager()
-      .getSelectedShapes();
-
     // Draw non-temporary shapes first
     for (const shape of this.shapes) {
+      // Use SelectionManager to determine if this shape is selected by any user
+      const selectionMap = this.SelectionManager.selectionMap;
+      let marked = false;
+      let markedColor = "green";
+      for (const userId in selectionMap) {
+        const selectedIds = selectionMap[userId];
+        if (selectedIds && selectedIds.includes(shape.id)) {
+          marked = true;
+          markedColor = userIdToColor(userId);
+          break;
+        }
+      }
       shape.draw(this.ctx, {
-        marked:
-          this.toolarea.selectionModeActive() && !!selectedShapesMap[shape.id],
-        markedColor: "green",
+        marked,
+        markedColor,
       });
     }
     // Draw temporary shapes on top
@@ -891,9 +942,9 @@ export function canvasPage(pageContent: HTMLElement) {
   const toolArea = new ToolArea(
     shapesSelector,
     menu,
-    new SelectionManager(sm, eventBus)
+    new LocalSelectionManager(sm, eventBus)
   );
-  canvas = new Canvas(canvasDomElm, toolArea);
+  canvas = new Canvas(canvasDomElm, toolArea, new SelectionManager(eventBus));
 
   // Disable toolbar if readonly or moderated
   if (readonly || moderated) {

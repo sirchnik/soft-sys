@@ -8,6 +8,7 @@ export enum EventTypes {
   CLEAR_CANVAS_EVENT = "CLEAR_CANVAS_EVENT",
   REDRAW_EVENT = "REDRAW_EVENT",
   RIGHTS_CHANGED = "RIGHTS_CHANGED",
+  SELECTION_EVENT = "SELECTION_EVENT",
 }
 
 export interface Point2D {
@@ -90,6 +91,13 @@ export type DomainEvent = {
   | {
       type: EventTypes.REDRAW_EVENT;
       payload: {};
+    }
+  | {
+      type: EventTypes.SELECTION_EVENT;
+      payload: {
+        userId: string;
+        selectedShapeIds: string[];
+      };
     }
 );
 

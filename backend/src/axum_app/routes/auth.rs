@@ -36,15 +36,20 @@ pub async fn register(
         .hash_password(payload.password.as_bytes(), &salt)
         .unwrap();
 
-    sqlx::query("INSERT INTO users (email, display_name, password_hash) VALUES ($1, $2, $3)")
+    match sqlx::query("INSERT INTO users (email, display_name, password_hash) VALUES ($1, $2, $3)")
         .bind(&payload.email)
         .bind(&payload.display_name)
         .bind(&hash.to_string())
         .execute(&*state.db)
         .await
-        .unwrap();
-
-    Ok(StatusCode::CREATED)
+    {
+        Ok(_) => return Ok(StatusCode::CREATED),
+        Err(sqlx::Error::Database(_db_err)) => return Ok(StatusCode::BAD_REQUEST),
+        Err(e) => {
+            tracing::error!("Database error: {:?}", e);
+            return Ok(StatusCode::INTERNAL_SERVER_ERROR);
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

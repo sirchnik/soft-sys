@@ -28,7 +28,7 @@ cd soft-sys
 # 5.4
 # - Der Satz „V: Er hat Schreibenderechte, und kann dies auch bearbeiten, falls die im Zustand ‚moderiert‘ ist,“
 #   war für mich nicht ganz eindeutig.
-#   Ich habe V nun uneingeschränkte Schreibrechte gegeben. Es wäre aber auch anders interpretierbar gewesen.
+#   Ich habe V nur uneingeschränkte Schreibrechte gegeben. Es wäre aber auch anders interpretierbar gewesen.
 #
 # A5.5
 #
