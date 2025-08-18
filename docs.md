@@ -1,15 +1,24 @@
 # Architecture Documentation
 
+> [!NOTE]
+>
+> This document is intentionally short and only covers the most important parts
+> of the architecture.
+>
+> Additionally writing it was not part of the original Aufgabenstellung.
+
+---
+
 ## 1. Overview
 
-This project is a collaborative drawing application with:
+This project is a collaborative drawing application. It supports:
 
-- User authentication and authorization
-- Real-time multiuser canvas editing
-- Rights management for canvas access and moderation
+- user authentication and authorization
+- real-time multi-user canvas editing
+- rights management for canvas access and moderation
 
-It consists of four main components: an HTTP backend, a WebSocket server, a
-TypeScript SPA frontend, and a SQLite database.
+The system consists of four main components: an HTTP backend, a WebSocket
+server, a TypeScript SPA frontend, and a SQLite database.
 
 ---
 
@@ -17,168 +26,177 @@ TypeScript SPA frontend, and a SQLite database.
 
 ### 2.1 HTTP Backend (Rust + Axum)
 
-**Responsibilities**
+The backend serves static frontend assets (HTML, JS, CSS) and provides REST
+endpoints for authentication and canvas management. It also broadcasts rights
+changes to connected clients.
 
-- Serve static frontend assets (HTML, JS, CSS)
-- Provide REST endpoints for:
+Dependencies:
 
-  - Authentication
-  - Canvas management
+- axum for HTTP server and routing
+- serde_json for JSON serialization
+- jsonwebtoken for JWT authentication
+- argon2 for password hashing
 
-- Broadcast rights changes to connected clients
+Authentication:
 
-**Dependencies**
+A JWT is issued upon successful login and stored in a secure, HTTP-only cookie.
+The token payload contains
 
-- `axum` — HTTP server and request handling
-- `serde_json` — JSON serialization/deserialization
-- `jsonwebtoken` — JWT authentication (algorithm support, validation)
-- `argon2` — Password hashing
+- user id
+- email
+- display name
+- expiration timestamp.
 
-**Authentication**
-
-- A JWT is issued upon successful login.
-- Stored in a secure, HTTP-only cookie
-- Payload contents:
-  - id — User ID
-  - email — User email address
-  - display_name — User display name
-  - (exp — Expiration timestamp)
-- The JWT only holds user information no other state.
+JWTs only carry identity information, no other state as this data is not
+changing constantly and changes are expected by user actions to only be visible
+after relogin.
 
 ---
 
 ### 2.2 WebSocket Server (Rust + Tungstenite)
 
-**Responsibilities**
+The WebSocket server handles real-time collaboration. It broadcasts canvas
+updates, enforces rights on canvas actions, and applies rights changes in real
+time.
 
-- Broadcast canvas updates to all connected clients
-- Enforce user rights on canvas actions
-- Process rights changes in real-time
+Dependencies:
 
-**Dependencies**
+- tungstenite for WebSocket handling
+- tokio-stream, futures, anyhow for async utilities
 
-- `tungstenite` — WebSocket handling (security and standards compliance)
-- `tokio-stream`, `anyhow`, `futures` — Async programming utilities
+Protocol details:
 
-**WebSocket Interaction**
+- Authentication: the client presents a valid JWT (via cookie) during the
+  upgrade request.
+- Message types:
 
-- **Authentication**: The server expects the client to present a valid JWT via
-  cookie in the WebSocket upgrade request.
-- **Message Types**:
-  - `PING`: Keepalive check + memory cleaner for long-dead connections. The
-    server echoes the event back to the sender.
-  - `DRAW_EVENT`: Drawing actions (e.g., strokes, erases) are sent by clients
-    and broadcast to all other clients on the same canvas.
-  - `RIGHTS_CHANGED`: Sent by the server when a user's rights on a canvas
-    change. If a user loses all rights, the server notifies and closes their
-    connection.
-- **Event Forwarding**:
-  - Events are only forwarded to clients connected to the same canvas, except
-    for the sender (who does not receive their own event).
-  - If a client connection fails, it is removed from the forwarding map.
-- **Rights Enforcement**:
-  - The server checks user rights before processing drawing or moderation
-    actions.
+  - `PING`: keepalive, echoed back
+  - `DRAW_EVENT`: drawing actions, broadcast to all other clients on the same
+    canvas
+  - `RIGHTS_CHANGED`: sent by the server when a user’s rights change;
+    connections are closed if rights are revoked
+
+- Events are forwarded only to other clients on the same canvas, never to the
+  sender. Dead connections are removed.
+- All drawing and moderation actions are validated against the user’s rights.
 
 ---
 
 ### 2.3 Frontend (TypeScript SPA)
 
-**Responsibilities**
+The frontend is a single-page application with routes for `/`, `/login`,
+`/register`, and `/canvas/<ID>`.
 
-- Single-page application with routes:
+It provides login and registration forms with JWT cookie handling, a
+personalized home page with a list of canvases, canvas creation, and real-time
+drawing via WebSocket.
 
-  - `/`
-  - `/login`
-  - `/register`
-  - `/canvas/<ID>`
+Dependencies:
 
-- User authentication (login/register forms, JWT cookie handling)
-- Personalized home page with accessible canvas list
-- Canvas creation UI
-- Real-time drawing and updates via WebSocket
-
-**Dependencies**
-
-- `esbuild` — Bundling and building frontend code
-- `live-server` — Local development server
+- esbuild for bundling
+- live-server for local development
 
 ---
 
 ### 2.4 Database (SQLite)
 
-**Schema**
+Schema:
 
-- **`users`** — Stores user data:
+- `users`: stores user accounts (id, email, display_name, password_hash,
+  timestamps)
+- `canvas`: stores canvas metadata (id, moderated flag)
+- `canvas_events`: serialized drawing events per canvas, linked via canvas_id
+- `user_canvas`: user–canvas associations with rights (R, W, V, M, O);
+  referential integrity enforced with cascading deletes
 
-  - `id`, `email`, `display_name`, `password_hash`
-  - Creation/update timestamps
+Migrations:
 
-- **`canvas`** — Stores canvas metadata:
+- managed with `sqlx migrate`
+- applied via `migrate.sh`
+- new migrations live in `migrations/` with descriptive filenames
+- see [SQLx Migrations](https://docs.rs/sqlx/latest/sqlx/macro.migrate.html)
 
-  - `id`, `moderated` flag
+Dependencies:
 
-- **`canvas_events`** — Stores serialized drawing events per canvas (linked by
-  `canvas_id`) for persistence/replay
-
-- **`user_canvas`** — Associates users with canvases and rights:
-
-  - Rights: `R`, `W`, `V`, `M`, `O`
-  - Referential integrity with cascading deletes
-
-**Migrations**
-
-- Managed with `sqlx migrate`
-- `migrate.sh` applies pending migrations
-- New migrations go in `migrations/` with descriptive filenames
-- Documentation:
-  [SQLx Migrations](https://docs.rs/sqlx/latest/sqlx/macro.migrate.html)
-
-**Dependencies**
-
-- `sqlx` — Database access (runtime-checked SQL, Postgres-ready)
+- sqlx for database access (runtime-checked SQL, Postgres-ready)
 
 ---
 
-## 3. Rights System
+## 3. Implementation Details
 
-| Code  | Permission Level  | Description                               |
-| ----- | ----------------- | ----------------------------------------- |
-| **R** | Read-only         | View canvas, see in list                  |
-| **W** | Write             | Edit canvas if not moderated              |
-| **V** | Write (moderated) | Edit even if moderated                    |
-| **M** | Moderator         | Edit, toggle moderation, assign up to `V` |
-| **O** | Owner             | Full control, assign any rights           |
+### 3.1 Canvas Event Sourcing
 
-## 3. Development Setup
+The system uses event sourcing for canvas state. Each interaction produces an
+event that is:
 
-### Dependencies
+1. applied locally in the frontend,
+2. broadcast to other clients,
+3. persisted in the database.
+
+On canvas load, all stored events are replayed in chronological order.
+
+### 3.2 User Rights
+
+| Code | Permission level  | Description                             |
+| ---- | ----------------- | --------------------------------------- |
+| R    | Read-only         | View canvas, see in list                |
+| W    | Write             | Edit canvas if not moderated            |
+| V    | Write (moderated) | Edit even if moderated                  |
+| M    | Moderator         | Edit, toggle moderation, assign up to V |
+| O    | Owner             | Full control, assign any rights         |
+
+Right changes are done in REST-API and broadcast to all websocket clients using
+rust channels.
+
+### 3.3 Frontend Routing
+
+Each page is defined by a function that updates a `pageContent` element and
+returns a cleanup function that runs on navigation.
+
+---
+
+## 4. Development Setup
+
+Dependencies:
 
 - Rust toolchain (latest stable)
-- Node > 23
-- pnpm > 10
+- Node.js ≥ 23
+- pnpm ≥ 10
 
-### Commands
+Commands:
 
-- `cargo run` — Start the backend server
-- `npm run dev` — Start the frontend development server (hot reload)
+- `cargo run` — start the backend server
+- `npm run dev` — start the frontend dev server with hot reload
 
-## 4. Deployment
+---
 
-Docker is used for deployment. Start like this:
+## 5. Deployment
+
+Deployment is handled via Docker. Start with:
 
 ```bash
 docker compose up -d --build
 ```
 
-In the future there will be reverse proxy (e.g., Traefik) required to handle SSL
-termination and routing
+In the future, a reverse proxy such as Traefik will be required for SSL
+termination and routing.
 
-## 5. Limitations and Future Work
+---
 
-1. Horizontal scaling does not work as (not part of the Aufgabenstellung)
-   - The REST API needs to talk to the websocket server.
-   - Each Canvas would need its own WebSocket server instance but one Server
-     would need to direct the connections to the correct instance.
-2. JWT need a way to be invalidated (e.g., logout).
-3. Security needs to be improved (e.g., CSRF protection).
+## 6. Limitations and Future Work
+
+1. Horizontal scaling is not supported as each canvas would need its own
+   WebSocket instance with a router in front.
+2. Vertical scaling is not implemented. Canvas event forwarders could be
+   separated into their own Rust tasks.
+3. Event logs grow indefinitely. They should be compacted by periodically
+   replacing histories with snapshots of the visible state.
+4. JWTs cannot be invalidated (logout not possible).
+5. Security is incomplete (e.g. CSRF protection is missing), though this was
+   outside the Aufgabenstellung.
+
+---
+
+Do you want me to also rewrite this into a **shorter, high-level “executive
+summary” version** (e.g. 2–3 pages max), or should it stay as a full technical
+handover?

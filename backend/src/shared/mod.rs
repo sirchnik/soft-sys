@@ -1,3 +1,4 @@
+/// This module contains shared types and utilities used across the backend.
 pub mod jwt;
 
 #[derive(Clone, Debug)]
