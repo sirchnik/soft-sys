@@ -425,10 +425,10 @@ class SelectionManager {
   constructor(private eventBus: EventBus) {
     this.eventBus.subscribe(EventTypes.SELECTION_EVENT, (event) => {
       this.selectionMap[event.payload.userId] = event.payload.selectedShapeIds;
-    });
-    this.eventBus.dispatch({
-      type: EventTypes.REDRAW_EVENT,
-      payload: {},
+      this.eventBus.dispatch({
+        type: EventTypes.REDRAW_EVENT,
+        payload: {},
+      });
     });
   }
 }
