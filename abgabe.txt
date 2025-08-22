@@ -6,7 +6,7 @@ git clone ssh://git@gitlab.informatik.hs-augsburg.de:2222/niks/soft-sys.git
 
 cd soft-sys
 
-# Die Bewertung soll auf dem Commit d6b7144e48030291f809b07deee9f70bf911cbd1 basieren,
+# Die Bewertung soll auf dem Commit dd2451f47184343d27151b6d3c9cdeb16442bd34 basieren,
 # da die Aufgabenstellung zu 5.4 erst am 08.07. erklärt wurde und ich bereits mit 5.5 fortgefahren bin.
 # Theoretisch wären jedoch folgende Commits die Abgabe-Commits für die jeweiligen Aufgaben:
 # A5.1: de47fdffe017f70fdf9b286027a948fa5c38342f
@@ -33,7 +33,7 @@ cd soft-sys
 # A5.5
 #
 
-git checkout d6b7144e48030291f809b07deee9f70bf911cbd1
+git checkout dd2451f47184343d27151b6d3c9cdeb16442bd34
 
 docker compose up -d --build
 xdg-open http://localhost:8000
