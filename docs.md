@@ -194,9 +194,3 @@ termination and routing.
 4. JWTs cannot be invalidated (logout not possible).
 5. Security is incomplete (e.g. CSRF protection is missing), though this was
    outside the Aufgabenstellung.
-
----
-
-Do you want me to also rewrite this into a **shorter, high-level “executive
-summary” version** (e.g. 2–3 pages max), or should it stay as a full technical
-handover?
